@@ -835,13 +835,87 @@ svg {
 }
 
 /* ==========================================================================
-   DYNAMIC SAFETY & INSTALLATION CENTER (CARD UI & SIMULATION)
+   SAFETY TABBED INTERACTIVE MENU & PANELS
    ========================================================================== */
+.safety-tab-menu {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+
+.safety-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--muted);
+  transition: all 0.18s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.safety-tab-btn:hover {
+  color: var(--ink);
+  border-color: #cbd5e1;
+}
+
+.safety-tab-btn.active {
+  background: var(--ink);
+  color: #ffffff;
+  border-color: var(--ink);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+}
+
+.safety-tab-panel {
+  display: none;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.safety-tab-panel.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.panel-card {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 32px 30px;
+  box-shadow: var(--shadow-md);
+}
+
+.panel-header-badge {
+  display: inline-block;
+  background: var(--blue-pale);
+  color: var(--blue);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+.panel-desc {
+  font-size: 0.94rem;
+  color: #334155;
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
 .trust-cards-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
-  margin-bottom: 32px;
 }
 
 .trust-box {
@@ -913,56 +987,7 @@ svg {
   background: var(--green);
 }
 
-/* Interactive SmartScreen Container */
-.smartscreen-interactive-wrap {
-  background: #ffffff;
-  border: 1px solid #bfdbfe;
-  border-radius: 14px;
-  overflow: hidden;
-  box-shadow: var(--shadow-md);
-}
-
-.interactive-guide-header {
-  background: #eff6ff;
-  border-bottom: 1px solid #dbeafe;
-  padding: 16px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.guide-header-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 700;
-  color: #1e3a8a;
-  font-size: 0.98rem;
-}
-
-.interactive-tag {
-  font-family: 'DM Mono', monospace;
-  font-size: 0.68rem;
-  font-weight: 700;
-  background: #dbeafe;
-  color: var(--blue);
-  padding: 3px 8px;
-  border-radius: 999px;
-  text-transform: uppercase;
-}
-
-.interactive-guide-body {
-  padding: 24px 28px;
-}
-
-.smartscreen-explanation {
-  font-size: 0.92rem;
-  color: #334155;
-  line-height: 1.6;
-  margin-bottom: 22px;
-}
-
+/* SmartScreen Simulation Grid */
 .simulation-grid {
   display: grid;
   grid-template-columns: 1fr 1.1fr;
@@ -970,7 +995,6 @@ svg {
   align-items: start;
 }
 
-/* Live Interactive SmartScreen Modal Simulation */
 .smartscreen-sim-card {
   background: #005a9e;
   border-radius: 10px;
@@ -978,7 +1002,6 @@ svg {
   color: #ffffff;
   font-family: 'Segoe UI', system-ui, sans-serif;
   box-shadow: 0 12px 30px rgba(0, 90, 158, 0.25);
-  position: relative;
 }
 
 .sim-topbar {
@@ -1040,7 +1063,6 @@ svg {
   font-weight: 600;
   border-radius: 4px;
   border: 0;
-  transition: opacity 0.15s ease;
 }
 
 .sim-btn-cancel {
@@ -1070,11 +1092,10 @@ svg {
   text-align: center;
 }
 
-/* Installation Steps Box */
 .installation-steps-box {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
 .step-guide-row {
@@ -1123,15 +1144,55 @@ svg {
   font-size: 0.75rem;
 }
 
+/* Android & Cleanup Steps Grid */
+.android-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.android-step-box {
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 20px 16px;
+}
+
+.step-circle {
+  width: 28px;
+  height: 28px;
+  background: var(--blue);
+  color: #ffffff;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.android-step-box h4 {
+  font-size: 0.98rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.android-step-box p {
+  font-size: 0.84rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .android-install-strip {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   background: #ecfdf5;
   border: 1px solid #a7f3d0;
   border-radius: 8px;
-  padding: 12px 14px;
-  font-size: 0.82rem;
+  padding: 14px 16px;
+  font-size: 0.84rem;
   color: #065f46;
 }
 
@@ -1270,7 +1331,7 @@ svg {
     grid-template-columns: 1fr;
     gap: 44px;
   }
-  .features-grid, .trust-cards-row, .simulation-grid {
+  .features-grid, .trust-cards-row, .simulation-grid, .android-steps-grid {
     grid-template-columns: 1fr;
   }
   .editions-grid {
@@ -1346,8 +1407,12 @@ svg {
   .features-pill-row {
     flex-direction: column;
   }
-  .interactive-guide-body {
-    padding: 16px 14px;
+  .panel-card {
+    padding: 20px 16px;
+  }
+  .safety-tab-btn {
+    width: 100%;
+    justify-content: center;
   }
   .footer-wrap {
     flex-direction: column;
