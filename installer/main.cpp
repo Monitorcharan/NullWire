@@ -119,7 +119,7 @@ void RegisterInWindowsAddRemovePrograms(const std::wstring& installDir, const st
     HKEY hKey;
     const wchar_t* subKey = L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\NullWirePro";
     if (RegCreateKeyExW(HKEY_CURRENT_USER, subKey, 0, NULL, REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hKey, NULL) == ERROR_SUCCESS) {
-        const wchar_t* displayName = L"NullWire Pro";
+        const wchar_t* displayName = L"NullWire Pro (Beta)";
         const wchar_t* publisher = L"NullWire Audio Engineering";
         const wchar_t* version = L"2.0.0";
         
@@ -392,60 +392,65 @@ void StartInstallationThread(HWND hWnd) {
         uiStatus(L"Registering with Windows Installed Apps...", 90);
         RegisterInWindowsAddRemovePrograms(installDir, destSender, uninstallerPath);
 
-        uiStatus(L"Completed.", 100);
-        g_CurrentStep = WizardStep::FINISHED;
-        PostMessage(hWnd, WM_USER + 101, 0, 0);
+        uiStatus(L"Installation Completed Successfully!", 100);
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        PostMessageW(hWnd, WM_APP + 1, 0, 0);
     }).detach();
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
         case WM_CREATE: {
-            g_hFontTitle = CreateFontW(20, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+            g_hFontTitle = CreateFontW(18, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
             g_hFontBold = CreateFontW(14, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
             g_hFontNormal = CreateFontW(13, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
-            g_hFontSmall = CreateFontW(12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+            g_hFontSmall = CreateFontW(11, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
 
             InitCommonControls();
 
-            g_hInstallPathEdit = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", GetDefaultInstallPath().c_str(), WS_CHILD | ES_AUTOHSCROLL, 195, 120, 245, 24, hWnd, (HMENU)101, NULL, NULL);
+            // Destination Location Controls
+            std::wstring defPath = GetDefaultInstallPath();
+            g_hInstallPathEdit = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", defPath.c_str(), WS_CHILD | ES_AUTOHSCROLL, 195, 120, 240, 24, hWnd, (HMENU)101, NULL, NULL);
             SendMessage(g_hInstallPathEdit, WM_SETFONT, (WPARAM)g_hFontNormal, TRUE);
 
-            g_hBrowseBtn = CreateWindowW(L"BUTTON", L"Browse...", WS_CHILD | BS_PUSHBUTTON, 450, 119, 75, 26, hWnd, (HMENU)102, NULL, NULL);
+            g_hBrowseBtn = CreateWindowW(L"BUTTON", L"Browse...", WS_CHILD | BS_PUSHBUTTON, 445, 120, 75, 24, hWnd, (HMENU)102, NULL, NULL);
             SendMessage(g_hBrowseBtn, WM_SETFONT, (WPARAM)g_hFontNormal, TRUE);
 
-            g_hDesktopCheck = CreateWindowW(L"BUTTON", L"Create a &desktop shortcut", WS_CHILD | BS_AUTOCHECKBOX, 195, 165, 300, 20, hWnd, (HMENU)201, NULL, NULL);
+            g_hDesktopCheck = CreateWindowW(L"BUTTON", L"Create a Desktop Shortcut", WS_CHILD | BS_AUTOCHECKBOX, 195, 160, 300, 22, hWnd, (HMENU)201, NULL, NULL);
             SendMessage(g_hDesktopCheck, WM_SETFONT, (WPARAM)g_hFontNormal, TRUE);
             SendMessage(g_hDesktopCheck, BM_SETCHECK, BST_CHECKED, 0);
 
-            g_hStartMenuCheck = CreateWindowW(L"BUTTON", L"Create a &Start Menu shortcut", WS_CHILD | BS_AUTOCHECKBOX, 195, 192, 300, 20, hWnd, (HMENU)202, NULL, NULL);
+            g_hStartMenuCheck = CreateWindowW(L"BUTTON", L"Create Start Menu Shortcut", WS_CHILD | BS_AUTOCHECKBOX, 195, 185, 300, 22, hWnd, (HMENU)202, NULL, NULL);
             SendMessage(g_hStartMenuCheck, WM_SETFONT, (WPARAM)g_hFontNormal, TRUE);
             SendMessage(g_hStartMenuCheck, BM_SETCHECK, BST_CHECKED, 0);
 
-            g_hProgressBar = CreateWindowExW(0, PROGRESS_CLASSW, NULL, WS_CHILD | PBS_SMOOTH, 195, 140, 330, 18, hWnd, (HMENU)301, NULL, NULL);
+            // Installing Controls
+            g_hProgressBar = CreateWindowExW(0, PROGRESS_CLASSW, NULL, WS_CHILD | PBS_SMOOTH, 195, 110, 325, 20, hWnd, (HMENU)301, NULL, NULL);
             SendMessage(g_hProgressBar, PBM_SETRANGE, 0, MAKELPARAM(0, 100));
 
-            g_hStatusText = CreateWindowW(L"STATIC", L"Extracting files...", WS_CHILD, 195, 170, 330, 20, hWnd, (HMENU)302, NULL, NULL);
-            SendMessage(g_hStatusText, WM_SETFONT, (WPARAM)g_hFontSmall, TRUE);
+            g_hStatusText = CreateWindowW(L"STATIC", L"Preparing files...", WS_CHILD | SS_LEFT, 195, 140, 325, 40, hWnd, (HMENU)302, NULL, NULL);
+            SendMessage(g_hStatusText, WM_SETFONT, (WPARAM)g_hFontNormal, TRUE);
 
-            g_hLaunchCheck = CreateWindowW(L"BUTTON", L"Launch NullWire Pro", WS_CHILD | BS_AUTOCHECKBOX, 195, 215, 300, 22, hWnd, (HMENU)203, NULL, NULL);
+            // Finished Controls
+            g_hLaunchCheck = CreateWindowW(L"BUTTON", L"Launch NullWire Pro (Beta)", WS_CHILD | BS_AUTOCHECKBOX, 195, 215, 300, 22, hWnd, (HMENU)203, NULL, NULL);
             SendMessage(g_hLaunchCheck, WM_SETFONT, (WPARAM)g_hFontNormal, TRUE);
             SendMessage(g_hLaunchCheck, BM_SETCHECK, BST_CHECKED, 0);
 
-            g_hBackBtn = CreateWindowW(L"BUTTON", L"< Back", WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON, 280, 322, 75, 24, hWnd, (HMENU)401, NULL, NULL);
+            // Wizard Navigation Buttons
+            g_hBackBtn = CreateWindowW(L"BUTTON", L"< Back", WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON, 285, 318, 75, 24, hWnd, (HMENU)401, NULL, NULL);
+            g_hNextBtn = CreateWindowW(L"BUTTON", L"Next >", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 365, 318, 75, 24, hWnd, (HMENU)402, NULL, NULL);
+            g_hCancelBtn = CreateWindowW(L"BUTTON", L"Cancel", WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON, 450, 318, 75, 24, hWnd, (HMENU)403, NULL, NULL);
+
             SendMessage(g_hBackBtn, WM_SETFONT, (WPARAM)g_hFontNormal, TRUE);
-
-            g_hNextBtn = CreateWindowW(L"BUTTON", L"Next >", WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 362, 322, 75, 24, hWnd, (HMENU)402, NULL, NULL);
             SendMessage(g_hNextBtn, WM_SETFONT, (WPARAM)g_hFontNormal, TRUE);
-
-            g_hCancelBtn = CreateWindowW(L"BUTTON", L"Cancel", WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON, 452, 322, 75, 24, hWnd, (HMENU)403, NULL, NULL);
             SendMessage(g_hCancelBtn, WM_SETFONT, (WPARAM)g_hFontNormal, TRUE);
 
             UpdateStepControls(hWnd);
             break;
         }
 
-        case WM_USER + 101:
+        case WM_APP + 1:
+            g_CurrentStep = WizardStep::FINISHED;
             UpdateStepControls(hWnd);
             break;
 
@@ -475,26 +480,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
             RECT rcClient;
             GetClientRect(hWnd, &rcClient);
-            int totalW = rcClient.right;
-            int totalH = rcClient.bottom;
-
+            int totalW = rcClient.right - rcClient.left;
+            int totalH = rcClient.bottom - rcClient.top;
+            int contentH = totalH - 50;
             int bannerW = 175;
-            int contentH = 312;
 
-            HBRUSH hbrWhite = CreateSolidBrush(COLOR_WHITE);
-            RECT rcContent = { bannerW, 0, totalW, contentH };
-            FillRect(hdc, &rcContent, hbrWhite);
-            DeleteObject(hbrWhite);
+            // Header/Body Background
+            RECT rcBody = { bannerW, 0, totalW, contentH };
+            FillRect(hdc, &rcBody, (HBRUSH)(COLOR_WINDOW + 1));
 
-            HBRUSH hbrNav = CreateSolidBrush(COLOR_NAV_BG);
+            // Bottom Navigation Bar
             RECT rcNav = { 0, contentH, totalW, totalH };
+            HBRUSH hbrNav = CreateSolidBrush(COLOR_NAV_BG);
             FillRect(hdc, &rcNav, hbrNav);
             DeleteObject(hbrNav);
 
+            // Navigation Separator Line
             HPEN hPenLine = CreatePen(PS_SOLID, 1, COLOR_BORDER_LINE);
-            SelectObject(hdc, hPenLine);
+            HPEN hPenOld = (HPEN)SelectObject(hdc, hPenLine);
             MoveToEx(hdc, 0, contentH, NULL);
             LineTo(hdc, totalW, contentH);
+            SelectObject(hdc, hPenOld);
             DeleteObject(hPenLine);
 
             Graphics graphics(hdc);
@@ -507,12 +513,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     SelectObject(hdc, g_hFontTitle);
                     SetTextColor(hdc, COLOR_TEXT_MAIN);
                     RECT rcT = { 195, 28, totalW - 20, 80 };
-                    DrawTextW(hdc, L"Welcome to the NullWire Pro\r\nSetup Wizard", -1, &rcT, DT_WORDBREAK);
+                    DrawTextW(hdc, L"Welcome to the NullWire Pro (Beta)\r\nSetup Wizard", -1, &rcT, DT_WORDBREAK);
 
                     SelectObject(hdc, g_hFontNormal);
                     SetTextColor(hdc, COLOR_TEXT_SUB);
                     RECT rcD = { 195, 100, totalW - 20, contentH - 20 };
-                    DrawTextW(hdc, L"This will install NullWire Pro v2.0 on your computer.\r\n\r\nNullWire Pro delivers true lossless, bit-perfect, ultra-low latency audio streaming over 5GHz Wi-Fi with dedicated gaming and music scenario profiles.\r\n\r\nClick Next to continue, or Cancel to exit Setup.", -1, &rcD, DT_WORDBREAK);
+                    DrawTextW(hdc, L"This will install NullWire Pro v2.0 (Beta - In Development) on your computer.\r\n\r\nNullWire Pro delivers true lossless, bit-perfect, ultra-low latency audio streaming over 5GHz Wi-Fi with dedicated gaming and music scenario profiles.\r\n\r\nClick Next to continue, or Cancel to exit Setup.", -1, &rcD, DT_WORDBREAK);
                     break;
                 }
 
@@ -524,7 +530,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     SelectObject(hdc, g_hFontNormal);
                     SetTextColor(hdc, COLOR_TEXT_SUB);
                     RECT rcD = { 195, 62, totalW - 20, 115 };
-                    DrawTextW(hdc, L"Where should NullWire Pro be installed?\r\nTo continue, click Install. If you would like to select a different folder, click Browse.", -1, &rcD, DT_WORDBREAK);
+                    DrawTextW(hdc, L"Where should NullWire Pro (Beta) be installed?\r\nTo continue, click Install. If you would like to select a different folder, click Browse.", -1, &rcD, DT_WORDBREAK);
 
                     RECT rcSpace = { 195, 230, totalW - 20, 260 };
                     SelectObject(hdc, g_hFontSmall);
@@ -535,11 +541,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                 case WizardStep::INSTALLING: {
                     SelectObject(hdc, g_hFontTitle);
                     SetTextColor(hdc, COLOR_TEXT_MAIN);
-                    TextOutW(hdc, 195, 28, L"Installing NullWire Pro", 23);
+                    TextOutW(hdc, 195, 28, L"Installing NullWire Pro (Beta)", 30);
 
                     SelectObject(hdc, g_hFontNormal);
                     SetTextColor(hdc, COLOR_TEXT_SUB);
-                    TextOutW(hdc, 195, 65, L"Please wait while Setup installs NullWire Pro on your computer.", 63);
+                    TextOutW(hdc, 195, 65, L"Please wait while Setup installs NullWire Pro (Beta) on your computer.", 70);
                     break;
                 }
 
@@ -547,7 +553,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
                     SelectObject(hdc, g_hFontTitle);
                     SetTextColor(hdc, COLOR_TEXT_MAIN);
                     RECT rcT = { 195, 28, totalW - 20, 90 };
-                    DrawTextW(hdc, L"Completing the NullWire Pro\r\nSetup Wizard", -1, &rcT, DT_WORDBREAK);
+                    DrawTextW(hdc, L"Completing the NullWire Pro (Beta)\r\nSetup Wizard", -1, &rcT, DT_WORDBREAK);
 
                     SelectObject(hdc, g_hFontNormal);
                     SetTextColor(hdc, COLOR_TEXT_SUB);
@@ -659,7 +665,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     HWND hWnd = CreateWindowExW(
         WS_EX_APPWINDOW,
         L"NullWireModernWizardClass",
-        L"Setup - NullWire Pro",
+        L"Setup - NullWire Pro (Beta)",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
         CW_USEDEFAULT, CW_USEDEFAULT,
         550, 395,

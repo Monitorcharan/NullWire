@@ -1654,7 +1654,7 @@ void SetupSystemTray(HWND hWnd, HINSTANCE hInstance) {
     g_nid.uCallbackMessage = WM_TRAYICON;
     g_nid.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(1));
     if (!g_nid.hIcon) g_nid.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-    wcscpy_s(g_nid.szTip, L"NullWire Pro - Studio Audio Suite");
+    wcscpy_s(g_nid.szTip, L"NullWire Pro (Beta) - Studio Audio Suite");
     Shell_NotifyIconW(NIM_ADD, &g_nid);
 }
 
@@ -1663,7 +1663,7 @@ void ShowTrayContextMenu(HWND hWnd) {
     GetCursorPos(&pt);
     HMENU hMenu = CreatePopupMenu();
 
-    InsertMenuW(hMenu, 0, MF_BYPOSITION | MF_STRING, ID_TRAY_RESTORE, L"Open NullWire Pro");
+    InsertMenuW(hMenu, 0, MF_BYPOSITION | MF_STRING, ID_TRAY_RESTORE, L"Open NullWire Pro (Beta)");
     InsertMenuW(hMenu, 1, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
 
     std::wstring streamText = g_Engine.isStreaming.load() ? L"Stop Audio Stream (Ctrl+Shift+S)" : L"Start Audio Stream (Ctrl+Shift+S)";
@@ -1773,7 +1773,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
             SetTimer(hWnd, 1, 33, NULL);
 
-            PostNotification(L"🚀 NULLWIRE PRO READY", L"Ultra-Low Latency Lossless Wireless Audio Studio initialized.", Color(255, 0, 210, 255), false);
+            PostNotification(L"🚀 NULLWIRE PRO (BETA) READY", L"Ultra-Low Latency Lossless Wireless Audio Studio initialized (In Active Dev).", Color(255, 0, 210, 255), false);
             break;
         }
 
@@ -2013,11 +2013,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             SelectObject(hdcMem, g_hFontTitle);
             SetTextColor(hdcMem, COLOR_TEXT_MAIN);
             SetBkMode(hdcMem, TRANSPARENT);
-            TextOutW(hdcMem, 78, 16, L"NullWire Pro", 12);
+            TextOutW(hdcMem, 78, 16, L"NullWire Pro (Beta)", 19);
 
             SelectObject(hdcMem, g_hFontSub);
             SetTextColor(hdcMem, RGB(148, 163, 184));
-            TextOutW(hdcMem, 78, 42, L"Ultra-Low Latency Lossless Wireless Audio Studio  ·  v2.0", 55);
+            TextOutW(hdcMem, 78, 42, L"Ultra-Low Latency Lossless Wireless Audio Studio  ·  v2.0 Beta", 61);
 
             // Scenario status pill
             Gdiplus::Font fontPill(L"Segoe UI", 8.5f, FontStyleBold, UnitPoint);
@@ -2186,7 +2186,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     HWND hWnd = CreateWindowExW(
         WS_EX_APPWINDOW,
         L"NullWireProClass",
-        L"NullWire Pro  ·  Studio Wireless Audio Dashboard",
+        L"NullWire Pro (Beta)  ·  Studio Wireless Audio Dashboard",
         WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
         CW_USEDEFAULT, CW_USEDEFAULT,
         740, 920,
