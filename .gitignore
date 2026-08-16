@@ -32,6 +32,11 @@ local.properties
 !website/downloads/*.exe
 !website/downloads/*.apk
 
+# IDE & Editor files
+.vscode/
+.idea/
+*.iml
+
 # Local presentation slides
 slides/
 CAROUSEL_DECK.html
