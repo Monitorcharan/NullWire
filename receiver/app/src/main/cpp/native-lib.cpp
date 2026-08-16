@@ -88,7 +88,7 @@ public:
 
 // ── Studio Dynamic Master Limiter & Soft Saturator ───────────────────────────
 inline double StudioMasterLimiter(double sample) {
-    constexpr double threshold = 0.90;
+    constexpr double threshold = 0.94;
     double absS = std::abs(sample);
     if (absS <= threshold) return sample;
     double excess = absS - threshold;
@@ -96,24 +96,25 @@ inline double StudioMasterLimiter(double sample) {
     return (sample > 0) ? compressed : -compressed;
 }
 
-// ── Ultra-Low Jitter Lock-Free Ring Buffer with Zero-Crossing Guard ──────────
-class LockFreeRingBuffer {
+// ── Zero-Chirp Adaptive Jitter Ring Buffer with Smooth Decay Concealment ─────
+class ZeroChirpJitterBuffer {
 private:
     int16_t buffer[RING_BUFFER_SIZE]{};
     std::atomic<size_t> writeHead{0};
     std::atomic<size_t> readHead{0};
-    int16_t lastSampleL = 0;
-    int16_t lastSampleR = 0;
-    bool isBuffering = true;
+    float decayL = 0.0f;
+    float decayR = 0.0f;
+    bool isPrimed = false;
+    static constexpr size_t TARGET_PREROLL = 768; // ~8ms of absorption
 
 public:
     void Clear() {
         writeHead.store(0, std::memory_order_relaxed);
         readHead.store(0, std::memory_order_relaxed);
         std::fill_n(buffer, RING_BUFFER_SIZE, (int16_t)0);
-        lastSampleL = 0;
-        lastSampleR = 0;
-        isBuffering = true;
+        decayL = 0.0f;
+        decayR = 0.0f;
+        isPrimed = false;
     }
 
     size_t AvailableRead() const {
@@ -145,17 +146,18 @@ public:
         if (!outData || count == 0) return 0;
         size_t avail = AvailableRead();
 
-        // Optimized target jitter pre-roll (384 samples ~4ms @ 48kHz)
-        if (isBuffering) {
-            if (avail < 384) {
+        // 1. Initial Pre-roll Check (smooth buffer filling)
+        if (!isPrimed) {
+            if (avail < TARGET_PREROLL) {
                 std::fill_n(outData, count, (int16_t)0);
                 return 0;
             }
-            isBuffering = false;
+            isPrimed = true;
         }
 
+        // 2. Read available valid frames
         size_t toRead = std::min(count, avail);
-        if (toRead & 1) toRead -= 1;
+        if (toRead & 1) toRead -= 1; // Stereo alignment
         size_t r = readHead.load(std::memory_order_relaxed);
 
         for (size_t i = 0; i < toRead; i++) {
@@ -163,25 +165,20 @@ public:
         }
 
         if (toRead >= 2) {
-            lastSampleL = outData[toRead - 2];
-            lastSampleR = outData[toRead - 1];
+            decayL = (float)outData[toRead - 2];
+            decayR = (float)outData[toRead - 1];
             readHead.store((r + toRead) % RING_BUFFER_SIZE, std::memory_order_release);
         }
 
-        // Seamless zero-crossing cosine fade concealment during unexpected packet drop
+        // 3. Smooth Zero-Chirp Continuous Fade (NO hard on/off chatter!)
         if (toRead < count) {
-            isBuffering = true;
-            float curL = (float)lastSampleL;
-            float curR = (float)lastSampleR;
             size_t missingFrames = (count - toRead) / 2;
-
             for (size_t f = 0; f < missingFrames; f++) {
-                float factor = (f < 32) ? (0.5f * (1.0f + std::cos((float)f / 32.0f * (float)PI))) : 0.0f;
-                outData[toRead + f * 2] = (int16_t)(curL * factor);
-                outData[toRead + f * 2 + 1] = (int16_t)(curR * factor);
+                decayL *= 0.94f; // Smooth ~1.5ms decay
+                decayR *= 0.94f;
+                outData[toRead + f * 2] = (int16_t)decayL;
+                outData[toRead + f * 2 + 1] = (int16_t)decayR;
             }
-            lastSampleL = 0;
-            lastSampleR = 0;
         }
 
         return toRead;
@@ -190,7 +187,7 @@ public:
 
 class NativeEngine {
 public:
-    LockFreeRingBuffer ringBuffer;
+    ZeroChirpJitterBuffer ringBuffer;
     AAudioStream* playbackStream = nullptr;
     int playbackSocket = -1;
 
@@ -320,7 +317,7 @@ Java_com_nullwire_receiver_AudioEngine_startNativePlayback(JNIEnv* env, jobject 
     int reuse = 1;
     setsockopt(g_NativeEngine.playbackSocket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
 
-    int rcvBuf = 524288;
+    int rcvBuf = 1048576; // 1MB receive socket buffer
     setsockopt(g_NativeEngine.playbackSocket, SOL_SOCKET, SO_RCVBUF, &rcvBuf, sizeof(rcvBuf));
 
     sockaddr_in bindAddr{};
@@ -370,7 +367,8 @@ Java_com_nullwire_receiver_AudioEngine_startNativePlayback(JNIEnv* env, jobject 
 
     int32_t burstFrames = AAudioStream_getFramesPerBurst(g_NativeEngine.playbackStream);
     if (burstFrames > 0) {
-        AAudioStream_setBufferSizeInFrames(g_NativeEngine.playbackStream, burstFrames * 2);
+        int32_t targetBuf = std::max(burstFrames * 3, 576);
+        AAudioStream_setBufferSizeInFrames(g_NativeEngine.playbackStream, targetBuf);
     }
 
     result = AAudioStream_requestStart(g_NativeEngine.playbackStream);

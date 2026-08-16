@@ -913,8 +913,8 @@ public:
                     }
                     pCaptureClient->ReleaseBuffer(numFramesRead);
 
-                    // Fixed stable 128 frames (2.67ms @ 48kHz Stereo)
-                    constexpr int targetChunk = 128;
+                    // Optimal stable 192 frames (4.0ms @ 48kHz Stereo) - Sub-5ms with Zero Wi-Fi Fragmentation
+                    constexpr int targetChunk = 192;
                     constexpr int targetSamples = targetChunk * 2;
 
                     while ((int)pcmAccumulator.size() >= targetSamples) {

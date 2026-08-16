@@ -392,8 +392,10 @@ public:
             uint16_t sequenceNumber = 0;
             std::vector<uint8_t> packetPayload(MAX_AUDIO_PACKET);
 
-            constexpr int CHUNK_FRAMES = 128; // 2.67ms ultra-low latency chunk
+            // Optimal 192-frame (4.0 ms @ 48kHz) packet size - Sub-5ms with zero Wi-Fi fragmentation
+            constexpr int CHUNK_FRAMES = 192;
             constexpr int TARGET_SAMPLES = CHUNK_FRAMES * 2;
+            static uint32_t prngState = 0x5489a2b1;
 
             while (isStreaming.load()) {
                 UINT32 packetLength = 0;
@@ -411,19 +413,44 @@ public:
                 if (SUCCEEDED(hr)) {
                     if (numFramesRead > 0) {
                         for (UINT32 f = 0; f < numFramesRead; f++) {
-                            int16_t sL = 0, sR = 0;
+                            double l_raw = 0.0, r_raw = 0.0;
 
                             if (flags & AUDCLNT_BUFFERFLAGS_SILENT || !pData) {
-                                sL = 0; sR = 0;
+                                l_raw = 0.0;
+                                r_raw = 0.0;
                             } else if (isFloat) {
                                 const float* fSrc = reinterpret_cast<const float*>(pData + f * srcBytesPerFrame);
-                                sL = (int16_t)(std::clamp(fSrc[0], -1.0f, 1.0f) * 32767.0f);
-                                sR = (srcChannels > 1) ? (int16_t)(std::clamp(fSrc[1], -1.0f, 1.0f) * 32767.0f) : sL;
+                                l_raw = fSrc[0];
+                                r_raw = (srcChannels > 1) ? fSrc[1] : l_raw;
                             } else if (srcBits == 16) {
                                 const int16_t* sSrc = reinterpret_cast<const int16_t*>(pData + f * srcBytesPerFrame);
-                                sL = sSrc[0];
-                                sR = (srcChannels > 1) ? sSrc[1] : sL;
+                                l_raw = sSrc[0] / 32768.0;
+                                r_raw = (srcChannels > 1) ? sSrc[1] / 32768.0 : l_raw;
+                            } else if (srcBits == 24 && srcBytesPerFrame >= (srcChannels * 3)) {
+                                const uint8_t* bSrc = pData + f * srcBytesPerFrame;
+                                int32_t valL = (int32_t)((bSrc[0] << 8) | (bSrc[1] << 16) | (bSrc[2] << 24));
+                                l_raw = valL / 2147483648.0;
+                                if (srcChannels > 1) {
+                                    int32_t valR = (int32_t)((bSrc[3] << 8) | (bSrc[4] << 16) | (bSrc[5] << 24));
+                                    r_raw = valR / 2147483648.0;
+                                } else {
+                                    r_raw = l_raw;
+                                }
+                            } else if (srcBits == 32) {
+                                const int32_t* iSrc = reinterpret_cast<const int32_t*>(pData + f * srcBytesPerFrame);
+                                l_raw = iSrc[0] / 2147483648.0;
+                                r_raw = (srcChannels > 1) ? iSrc[1] / 2147483648.0 : l_raw;
                             }
+
+                            // TPDF High-Fidelity Triangular Dithering
+                            prngState = prngState * 1664525u + 1013904223u;
+                            int32_t r1 = (int32_t)(prngState >> 16);
+                            prngState = prngState * 1664525u + 1013904223u;
+                            int32_t r2 = (int32_t)(prngState >> 16);
+                            float dither = (float)(r1 - r2) / 2147483648.0f * (1.0f / 32768.0f);
+
+                            int16_t sL = (int16_t)(std::clamp(l_raw + dither, -1.0, 1.0) * 32767.0);
+                            int16_t sR = (int16_t)(std::clamp(r_raw + dither, -1.0, 1.0) * 32767.0);
 
                             pcmAccumulator.push_back(sL);
                             pcmAccumulator.push_back(sR);
