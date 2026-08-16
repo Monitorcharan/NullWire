@@ -55,3 +55,11 @@
 2. Enter your phone's IP address and click **Start Audio Stream**.
 3. Watch the **Real-Time Latency Tracker Graph** report sub-5ms packet delivery!
 4. *(Optional)* Click **Start Phone Mic** on your phone to use your phone/earphones as a wireless PC microphone.
+
+---
+
+## 📄 License
+
+NullWire is licensed under the **[GNU General Public License v3.0 (GPLv3)](./LICENSE)**.  
+Free and open-source for personal use, forever.
+
