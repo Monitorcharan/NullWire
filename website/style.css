@@ -5,7 +5,6 @@
   --ink-secondary: #334155;
   --muted: #64748b;
   --line: #e2e8f0;
-  --line-dark: #222f44;
   --surface: #ffffff;
   --soft: #f8fafc;
   --blue: #2563eb;
@@ -36,7 +35,6 @@ body {
   color: var(--ink);
   font: 16px/1.6 "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
@@ -47,6 +45,10 @@ a {
 button {
   font: inherit;
   cursor: pointer;
+}
+
+svg {
+  flex-shrink: 0;
 }
 
 .container {
@@ -89,9 +91,7 @@ button {
   transform: none;
 }
 
-/* ==========================================================================
-   SITE HEADER & NAVIGATION
-   ========================================================================== */
+/* Header */
 .site-header {
   position: sticky;
   top: 0;
@@ -121,9 +121,9 @@ button {
 }
 
 .brand-logo {
-  width: 32px;
-  height: 32px;
-  border-radius: 7px;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
 }
 
 .nav-links {
@@ -172,9 +172,7 @@ button {
   background: var(--ink);
 }
 
-/* ==========================================================================
-   HERO SECTION
-   ========================================================================== */
+/* Hero Section */
 .hero {
   padding: 72px 0 64px;
   background: var(--surface);
@@ -233,9 +231,8 @@ button {
 }
 
 .btn-icon {
-  width: 17px;
-  height: 17px;
-  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
 }
 
 .button-primary {
@@ -291,9 +288,7 @@ button {
   color: #cbd5e1;
 }
 
-/* ==========================================================================
-   INTERACTIVE STUDIO CONSOLE (HERO PREVIEW)
-   ========================================================================== */
+/* Studio Console Preview */
 .console-card {
   background: var(--dark-bg);
   border: 1px solid var(--dark-border);
@@ -301,7 +296,6 @@ button {
   box-shadow: var(--shadow-lg);
   overflow: hidden;
   color: #e2e8f0;
-  font-family: 'DM Sans', sans-serif;
 }
 
 .console-header {
@@ -324,8 +318,8 @@ button {
 }
 
 .console-icon {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   border-radius: 3px;
 }
 
@@ -395,8 +389,8 @@ button {
 }
 
 .path-arrow svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 /* Profile Selector */
@@ -560,7 +554,6 @@ button {
   width: 12px;
   height: 12px;
   color: #10b981;
-  flex-shrink: 0;
 }
 
 /* Console Footer */
@@ -585,9 +578,7 @@ button {
   color: #10b981 !important;
 }
 
-/* ==========================================================================
-   COMMON SECTION STYLING
-   ========================================================================== */
+/* Common Section Styling */
 .section {
   padding: 80px 0;
 }
@@ -633,9 +624,7 @@ button {
   color: var(--muted);
 }
 
-/* ==========================================================================
-   3-STEP SETUP GRID
-   ========================================================================== */
+/* 3-Step Setup Grid */
 .steps-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -679,9 +668,7 @@ button {
   line-height: 1.55;
 }
 
-/* ==========================================================================
-   FEATURES 6-ITEM GRID
-   ========================================================================== */
+/* Features Grid */
 .features-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -703,19 +690,19 @@ button {
 }
 
 .feature-icon {
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   background: var(--blue-pale);
   color: var(--blue);
-  border-radius: 10px;
+  border-radius: 8px;
   display: grid;
   place-items: center;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .feature-icon svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
 }
 
 .feature-item h3 {
@@ -731,9 +718,7 @@ button {
   line-height: 1.55;
 }
 
-/* ==========================================================================
-   EDITIONS DUAL GRID
-   ========================================================================== */
+/* Editions Dual Grid */
 .editions-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -849,9 +834,7 @@ button {
   color: var(--line);
 }
 
-/* ==========================================================================
-   SAFETY, TRUST & INSTALLATION SECTION
-   ========================================================================== */
+/* Safety & Installation Section */
 .trust-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -868,8 +851,8 @@ button {
 }
 
 .trust-icon {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   background: var(--green-pale);
   color: var(--green);
   border-radius: 8px;
@@ -879,8 +862,8 @@ button {
 }
 
 .trust-icon svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .trust-card h3 {
@@ -924,14 +907,13 @@ button {
   gap: 10px;
   font-weight: 700;
   color: #1e3a8a;
-  font-size: 1.02rem;
+  font-size: 1rem;
 }
 
 .info-shield {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   color: var(--blue);
-  flex-shrink: 0;
 }
 
 .smartscreen-body {
@@ -1006,15 +988,12 @@ button {
 }
 
 .android-safety-note svg {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   color: var(--green);
-  flex-shrink: 0;
 }
 
-/* ==========================================================================
-   FAQ ACCORDION
-   ========================================================================== */
+/* FAQ Accordion */
 .faq-accordion {
   display: flex;
   flex-direction: column;
@@ -1065,9 +1044,7 @@ button {
   display: block;
 }
 
-/* ==========================================================================
-   FINAL CTA SECTION
-   ========================================================================== */
+/* Final CTA Section */
 .final-section {
   padding-top: 40px;
 }
@@ -1104,9 +1081,7 @@ button {
   min-width: 240px;
 }
 
-/* ==========================================================================
-   FOOTER
-   ========================================================================== */
+/* Footer */
 .site-footer {
   padding: 36px 0;
   border-top: 1px solid var(--line);
@@ -1130,8 +1105,8 @@ button {
 }
 
 .footer-logo {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
 }
 
 .back-to-top {
@@ -1143,9 +1118,7 @@ button {
   color: var(--blue);
 }
 
-/* ==========================================================================
-   RESPONSIVE BREAKPOINTS
-   ========================================================================== */
+/* Responsive Breakpoints */
 @media (max-width: 960px) {
   .hero-grid {
     grid-template-columns: 1fr;
