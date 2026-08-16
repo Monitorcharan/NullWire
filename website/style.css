@@ -129,7 +129,7 @@ button {
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 28px;
+  gap: 24px;
 }
 
 .nav-links a {
@@ -185,27 +185,6 @@ button {
   grid-template-columns: 1fr 1.02fr;
   gap: 56px;
   align-items: center;
-}
-
-.hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 12px;
-  background: var(--blue-pale);
-  border: 1px solid #dbeafe;
-  border-radius: 999px;
-  color: var(--blue);
-  font-size: 0.76rem;
-  font-weight: 600;
-  margin-bottom: 20px;
-}
-
-.badge-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--green);
 }
 
 .hero h1 {
@@ -871,6 +850,169 @@ button {
 }
 
 /* ==========================================================================
+   SAFETY, TRUST & INSTALLATION SECTION
+   ========================================================================== */
+.trust-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 36px;
+}
+
+.trust-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 28px 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.trust-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--green-pale);
+  color: var(--green);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 16px;
+}
+
+.trust-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.trust-card h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+
+.trust-card p {
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.trust-card a {
+  color: var(--blue);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* SmartScreen Help Box */
+.smartscreen-box {
+  background: #f0f7ff;
+  border: 1px solid #c7e0fc;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.smartscreen-header {
+  background: #e2f0fe;
+  padding: 16px 24px;
+  border-bottom: 1px solid #c7e0fc;
+}
+
+.smartscreen-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: #1e3a8a;
+  font-size: 1.02rem;
+}
+
+.info-shield {
+  width: 20px;
+  height: 20px;
+  color: var(--blue);
+  flex-shrink: 0;
+}
+
+.smartscreen-body {
+  padding: 26px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.smartscreen-intro {
+  font-size: 0.95rem;
+  color: #334155;
+  line-height: 1.6;
+}
+
+.guide-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.guide-step {
+  background: #fff;
+  border: 1px solid #d0e4fa;
+  border-radius: 10px;
+  padding: 20px 18px;
+}
+
+.guide-num {
+  display: inline-block;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--blue);
+  background: var(--blue-pale);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.guide-step h4 {
+  font-size: 0.98rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.guide-step p {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.guide-step code {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.78rem;
+  background: #f1f5f9;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.android-safety-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid #d0e4fa;
+  border-radius: 8px;
+  padding: 14px 18px;
+  font-size: 0.86rem;
+  color: #334155;
+}
+
+.android-safety-note svg {
+  width: 22px;
+  height: 22px;
+  color: var(--green);
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
    FAQ ACCORDION
    ========================================================================== */
 .faq-accordion {
@@ -1009,7 +1151,7 @@ button {
     grid-template-columns: 1fr;
     gap: 44px;
   }
-  .features-grid {
+  .features-grid, .trust-grid, .guide-steps-grid {
     grid-template-columns: repeat(2, 1fr);
   }
   .editions-grid {
@@ -1076,7 +1218,7 @@ button {
     flex-direction: column;
     align-items: stretch;
   }
-  .features-grid {
+  .features-grid, .trust-grid, .guide-steps-grid {
     grid-template-columns: 1fr;
   }
   .console-visuals {
