@@ -31,3 +31,7 @@ local.properties
 # Ensure website downloads are tracked and deployable to Render
 !website/downloads/*.exe
 !website/downloads/*.apk
+
+# Local presentation slides
+slides/
+CAROUSEL_DECK.html
