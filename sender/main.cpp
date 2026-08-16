@@ -436,7 +436,7 @@ public:
                 presenceBoostDb.store(3.5f);
                 enableSpatial3D.store(true);
                 spatialSurroundAmount.store(0.85f);
-                PostNotification(L"🎮 PROFILE: GAMING ULTRA 2.67ms", L"Sub-millisecond low-latency MMAP with 3D Spatial HRTF active.", Color(255, 245, 158, 11), false);
+                PostNotification(L"PROFILE: GAMING LOW-LATENCY", L"Sub-millisecond low-latency MMAP with 3D Spatial HRTF active.", Color(255, 245, 158, 11), false);
                 break;
             case ScenarioMode::MUSIC_HIFI:
                 bassBoostDb.store(5.5f);
@@ -444,7 +444,7 @@ public:
                 presenceBoostDb.store(0.0f);
                 enableSpatial3D.store(false);
                 spatialSurroundAmount.store(0.0f);
-                PostNotification(L"🎵 PROFILE: HI-FI HARMAN", L"Audiophile natural sub-bass and silky treble curve active.", Color(255, 16, 185, 129), false);
+                PostNotification(L"PROFILE: HI-FI HARMAN STUDIO", L"Audiophile natural sub-bass and silky treble curve active.", Color(255, 16, 185, 129), false);
                 break;
             case ScenarioMode::CINEMA_MOVIE:
                 bassBoostDb.store(7.0f);
@@ -452,7 +452,7 @@ public:
                 presenceBoostDb.store(2.0f);
                 enableSpatial3D.store(true);
                 spatialSurroundAmount.store(0.70f);
-                PostNotification(L"🎬 PROFILE: CINEMA 3D SURROUND", L"Dolby-style room acoustic matrix and vocal dialogue lift.", Color(255, 168, 85, 247), false);
+                PostNotification(L"PROFILE: CINEMA 3D SURROUND", L"Dolby-style room acoustic matrix and vocal dialogue lift.", Color(255, 168, 85, 247), false);
                 break;
             case ScenarioMode::PURE_DIRECT:
                 bassBoostDb.store(0.0f);
@@ -460,7 +460,7 @@ public:
                 presenceBoostDb.store(0.0f);
                 enableSpatial3D.store(false);
                 spatialSurroundAmount.store(0.0f);
-                PostNotification(L"🎯 PROFILE: BIT-PERFECT DIRECT", L"Pure flat studio reference mode (0 DSP processing).", Color(255, 0, 210, 255), false);
+                PostNotification(L"PROFILE: BIT-PERFECT DIRECT", L"Pure flat studio reference mode (0 DSP processing).", Color(255, 0, 210, 255), false);
                 break;
         }
     }
@@ -1370,7 +1370,115 @@ void DrawModernToggle(Graphics& g, const Rect& r, bool isChecked, const wchar_t*
     g.DrawString(text, -1, &fontText, PointF((float)switchX + switchW + 12, (float)r.Y + 2), &brushText);
 }
 
-void DrawModernPillButton(Graphics& g, const Rect& r, const wchar_t* text, bool isSelected, bool isHover, Color accentColor, bool isPrimary = false) {
+enum class StudioIconType {
+    NONE,
+    EQ_BARS,       // Hi-Fi Harman
+    GAMEPAD,       // Gaming Low-Latency
+    SPATIAL_WAVE,  // Cinema 3D
+    PRECISION_DOT, // Bit-Perfect Direct
+    SMARTPHONE,    // Auto-Pair Phone
+    PLAY,          // Start Audio Stream
+    STOP,          // Stop Audio Stream
+    MIC            // Receive Phone Mic
+};
+
+void DrawVectorStudioIcon(Graphics& g, StudioIconType icon, float cx, float cy, float size, Color color) {
+    if (icon == StudioIconType::NONE) return;
+    g.SetSmoothingMode(SmoothingModeAntiAlias);
+    Pen pen(color, 1.8f);
+    pen.SetLineCap(LineCapRound, LineCapRound, DashCapRound);
+    pen.SetLineJoin(LineJoinRound);
+    SolidBrush brush(color);
+
+    switch (icon) {
+        case StudioIconType::EQ_BARS: {
+            float h = size * 0.75f;
+            float w = size * 0.65f;
+            float x0 = cx - w / 2.0f;
+            float y0 = cy - h / 2.0f;
+            g.DrawLine(&pen, x0, y0 + h * 0.4f, x0, y0 + h);
+            g.DrawLine(&pen, x0 + w * 0.5f, y0, x0 + w * 0.5f, y0 + h);
+            g.DrawLine(&pen, x0 + w, y0 + h * 0.6f, x0 + w, y0 + h);
+            break;
+        }
+        case StudioIconType::GAMEPAD: {
+            float r = size * 0.35f;
+            g.DrawLine(&pen, cx - r, cy, cx + r, cy);
+            g.DrawLine(&pen, cx, cy - r, cx, cy + r);
+            float dotR = 1.2f;
+            g.FillEllipse(&brush, cx + r * 0.6f - dotR, cy - r * 0.5f - dotR, dotR * 2.0f, dotR * 2.0f);
+            g.FillEllipse(&brush, cx + r * 0.6f - dotR, cy + r * 0.5f - dotR, dotR * 2.0f, dotR * 2.0f);
+            break;
+        }
+        case StudioIconType::SPATIAL_WAVE: {
+            float r = size * 0.40f;
+            Pen penThin(color, 1.4f);
+            g.DrawArc(&penThin, cx - r, cy - r, r * 2.0f, r * 2.0f, -60.0f, 120.0f);
+            g.DrawArc(&penThin, cx - r * 0.55f, cy - r * 0.55f, r * 1.1f, r * 1.1f, -50.0f, 100.0f);
+            g.FillEllipse(&brush, cx - r * 0.35f, cy - 1.5f, 3.0f, 3.0f);
+            break;
+        }
+        case StudioIconType::PRECISION_DOT: {
+            float r = size * 0.38f;
+            PointF pts[4] = {
+                PointF(cx, cy - r),
+                PointF(cx + r, cy),
+                PointF(cx, cy + r),
+                PointF(cx - r, cy)
+            };
+            g.DrawPolygon(&pen, pts, 4);
+            g.FillEllipse(&brush, cx - 1.5f, cy - 1.5f, 3.0f, 3.0f);
+            break;
+        }
+        case StudioIconType::SMARTPHONE: {
+            float w = size * 0.50f;
+            float h = size * 0.80f;
+            RectF rPhone(cx - w / 2.0f, cy - h / 2.0f, w, h);
+            GraphicsPath p;
+            p.AddArc(rPhone.X, rPhone.Y, 3.0f, 3.0f, 180, 90);
+            p.AddArc(rPhone.GetRight() - 3.0f, rPhone.Y, 3.0f, 3.0f, 270, 90);
+            p.AddArc(rPhone.GetRight() - 3.0f, rPhone.GetBottom() - 3.0f, 3.0f, 3.0f, 0, 90);
+            p.AddArc(rPhone.X, rPhone.GetBottom() - 3.0f, 3.0f, 3.0f, 90, 90);
+            p.CloseFigure();
+            g.DrawPath(&pen, &p);
+            g.FillEllipse(&brush, cx - 1.0f, cy + h * 0.30f, 2.0f, 2.0f);
+            break;
+        }
+        case StudioIconType::PLAY: {
+            float r = size * 0.38f;
+            PointF pts[3] = {
+                PointF(cx - r * 0.6f, cy - r),
+                PointF(cx + r * 0.9f, cy),
+                PointF(cx - r * 0.6f, cy + r)
+            };
+            g.FillPolygon(&brush, pts, 3);
+            break;
+        }
+        case StudioIconType::STOP: {
+            float r = size * 0.32f;
+            g.FillRectangle(&brush, cx - r, cy - r, r * 2.0f, r * 2.0f);
+            break;
+        }
+        case StudioIconType::MIC: {
+            float w = size * 0.32f;
+            float h = size * 0.54f;
+            RectF rCapsule(cx - w / 2.0f, cy - h / 2.0f - 2.0f, w, h);
+            GraphicsPath p;
+            p.AddArc(rCapsule.X, rCapsule.Y, w, w, 180, 180);
+            p.AddLine(rCapsule.GetRight(), rCapsule.Y + w / 2.0f, rCapsule.GetRight(), rCapsule.GetBottom() - w / 2.0f);
+            p.AddArc(rCapsule.X, rCapsule.GetBottom() - w, w, w, 0, 180);
+            p.CloseFigure();
+            g.DrawPath(&pen, &p);
+            float cradleR = w * 0.85f;
+            g.DrawArc(&pen, cx - cradleR, cy - cradleR * 0.2f, cradleR * 2.0f, cradleR * 2.0f, 0, 180);
+            g.DrawLine(&pen, cx, cy + cradleR * 0.8f, cx, cy + cradleR * 0.8f + 3.5f);
+            break;
+        }
+        default: break;
+    }
+}
+
+void DrawModernPillButton(Graphics& g, const Rect& r, const wchar_t* text, bool isSelected, bool isHover, Color accentColor, bool isPrimary = false, StudioIconType icon = StudioIconType::NONE) {
     g.SetSmoothingMode(SmoothingModeAntiAlias);
 
     GraphicsPath path;
@@ -1402,11 +1510,25 @@ void DrawModernPillButton(Graphics& g, const Rect& r, const wchar_t* text, bool 
     }
 
     Gdiplus::Font fontBtn(L"Segoe UI", isPrimary ? 10.0f : 9.0f, FontStyleBold, UnitPoint);
-    SolidBrush brushText(isPrimary ? Color(255, 255, 255, 255) : (isSelected ? accentColor : (isHover ? Color(255, 255, 255, 255) : Color(255, 203, 213, 225))));
-    StringFormat sf;
-    sf.SetAlignment(StringAlignmentCenter);
-    sf.SetLineAlignment(StringAlignmentCenter);
-    g.DrawString(text, -1, &fontBtn, RectF((float)r.X, (float)r.Y, (float)r.Width, (float)r.Height), &sf, &brushText);
+    Color txtCol = isPrimary ? Color(255, 255, 255, 255) : (isSelected ? accentColor : (isHover ? Color(255, 255, 255, 255) : Color(255, 203, 213, 225)));
+    SolidBrush brushText(txtCol);
+
+    if (icon != StudioIconType::NONE) {
+        RectF textBounds;
+        g.MeasureString(text, -1, &fontBtn, PointF(0, 0), &textBounds);
+        float iconSize = 14.0f;
+        float totalW = iconSize + 6.0f + textBounds.Width;
+        float startX = (float)r.X + ((float)r.Width - totalW) / 2.0f;
+        float centerY = (float)r.Y + (float)r.Height / 2.0f;
+
+        DrawVectorStudioIcon(g, icon, startX + iconSize / 2.0f, centerY, iconSize, txtCol);
+        g.DrawString(text, -1, &fontBtn, PointF(startX + iconSize + 6.0f, centerY - textBounds.Height / 2.0f + 0.5f), &brushText);
+    } else {
+        StringFormat sf;
+        sf.SetAlignment(StringAlignmentCenter);
+        sf.SetLineAlignment(StringAlignmentCenter);
+        g.DrawString(text, -1, &fontBtn, RectF((float)r.X, (float)r.Y, (float)r.Width, (float)r.Height), &sf, &brushText);
+    }
 }
 
 void DrawSpectrumAndOscilloscope(Graphics& g, int x, int y, int w, int h) {
@@ -2036,13 +2158,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             int pad = 24;
             int cardW = width - pad * 2;
 
-            // 2. Preset Pills (Interactive Modern GDI+) - Clean typography without broken emoji boxes
+            // 2. Preset Pills (Interactive Modern GDI+ with Studio Vector Icons)
             ScenarioMode curMode = g_Engine.currentScenario.load();
             const wchar_t* presetTitles[] = {L"Hi-Fi Harman", L"Gaming 2.67ms", L"Cinema 3D", L"Bit-Perfect"};
             Color presetColors[] = {Color(255, 16, 185, 129), Color(255, 245, 158, 11), Color(255, 168, 85, 247), Color(255, 0, 210, 255)};
+            StudioIconType presetIcons[] = {StudioIconType::EQ_BARS, StudioIconType::GAMEPAD, StudioIconType::SPATIAL_WAVE, StudioIconType::PRECISION_DOT};
 
             for (int i = 0; i < 4; i++) {
-                DrawModernPillButton(graphics, g_ui.rPresets[i], presetTitles[i], (int)curMode == i, g_hoverElement == i, presetColors[i]);
+                DrawModernPillButton(graphics, g_ui.rPresets[i], presetTitles[i], (int)curMode == i, g_hoverElement == i, presetColors[i], false, presetIcons[i]);
             }
 
             // 3. Card 1 Background (Connection) (Y: 116, H: 104)
@@ -2052,10 +2175,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             std::string devName;
             {
                 std::lock_guard<std::mutex> lock(g_Engine.discoveryMutex);
-                devName = g_Engine.hasDiscoveredDevice.load() ? ("[●] " + g_Engine.discoveredDeviceName) : "Auto-Pair Phone";
+                devName = g_Engine.hasDiscoveredDevice.load() ? g_Engine.discoveredDeviceName : "Auto-Pair Phone";
             }
             std::wstring wDevName(devName.begin(), devName.end());
-            DrawModernPillButton(graphics, g_ui.rAutoPairBtn, wDevName.c_str(), false, g_hoverElement == 10, Color(255, 16, 185, 129));
+            DrawModernPillButton(graphics, g_ui.rAutoPairBtn, wDevName.c_str(), false, g_hoverElement == 10, Color(255, 16, 185, 129), false, StudioIconType::SMARTPHONE);
 
             // 4. Card 2 Background (DSP Equalizer) (Y: 230, H: 164)
             DrawModernGlassCard(graphics, pad, 230, cardW, 164, L"STUDIO ACOUSTIC DSP & 3D BINAURAL MATRIX", L"64-BIT DITHERED", Color(255, 168, 85, 247));
@@ -2076,10 +2199,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
             // 5. Action Buttons (Interactive GDI+) (Y: 404, H: 44)
             bool isStreaming = g_Engine.isStreaming.load();
-            DrawModernPillButton(graphics, g_ui.rStreamBtn, isStreaming ? L"STOP AUDIO STREAM" : L"START AUDIO STREAM", isStreaming, g_hoverElement == 40, Color(255, 0, 210, 255), true);
+            DrawModernPillButton(graphics, g_ui.rStreamBtn, isStreaming ? L"STOP AUDIO STREAM" : L"START AUDIO STREAM", isStreaming, g_hoverElement == 40, Color(255, 0, 210, 255), true, isStreaming ? StudioIconType::STOP : StudioIconType::PLAY);
 
             bool isMic = g_Engine.isMicReceiving.load();
-            DrawModernPillButton(graphics, g_ui.rMicBtn, isMic ? L"STOP PHONE MIC" : L"RECEIVE PHONE MIC", isMic, g_hoverElement == 41, Color(255, 168, 85, 247));
+            DrawModernPillButton(graphics, g_ui.rMicBtn, isMic ? L"STOP PHONE MIC" : L"RECEIVE PHONE MIC", isMic, g_hoverElement == 41, Color(255, 168, 85, 247), false, isMic ? StudioIconType::STOP : StudioIconType::MIC);
 
             // 6. Card 3: Real-Time Spectrum & Oscilloscope (Y: 460, H: 156)
             DrawSpectrumAndOscilloscope(graphics, pad, 460, cardW, 156);

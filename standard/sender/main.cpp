@@ -612,7 +612,55 @@ void DrawModernGlassCard(Graphics& g, int x, int y, int w, int h, const wchar_t*
     }
 }
 
-void DrawModernPillButton(Graphics& g, const Rect& r, const wchar_t* text, bool isHover, Color accentColor, bool isPrimary = false) {
+enum class StudioIconType {
+    NONE,
+    SMARTPHONE,
+    PLAY,
+    STOP
+};
+
+void DrawVectorStudioIcon(Graphics& g, StudioIconType icon, float cx, float cy, float size, Color color) {
+    if (icon == StudioIconType::NONE) return;
+    g.SetSmoothingMode(SmoothingModeAntiAlias);
+    Pen pen(color, 1.8f);
+    pen.SetLineCap(LineCapRound, LineCapRound, DashCapRound);
+    SolidBrush brush(color);
+
+    switch (icon) {
+        case StudioIconType::SMARTPHONE: {
+            float w = size * 0.50f;
+            float h = size * 0.80f;
+            RectF rPhone(cx - w / 2.0f, cy - h / 2.0f, w, h);
+            GraphicsPath p;
+            p.AddArc(rPhone.X, rPhone.Y, 3.0f, 3.0f, 180, 90);
+            p.AddArc(rPhone.GetRight() - 3.0f, rPhone.Y, 3.0f, 3.0f, 270, 90);
+            p.AddArc(rPhone.GetRight() - 3.0f, rPhone.GetBottom() - 3.0f, 3.0f, 3.0f, 0, 90);
+            p.AddArc(rPhone.X, rPhone.GetBottom() - 3.0f, 3.0f, 3.0f, 90, 90);
+            p.CloseFigure();
+            g.DrawPath(&pen, &p);
+            g.FillEllipse(&brush, cx - 1.0f, cy + h * 0.30f, 2.0f, 2.0f);
+            break;
+        }
+        case StudioIconType::PLAY: {
+            float r = size * 0.38f;
+            PointF pts[3] = {
+                PointF(cx - r * 0.6f, cy - r),
+                PointF(cx + r * 0.9f, cy),
+                PointF(cx - r * 0.6f, cy + r)
+            };
+            g.FillPolygon(&brush, pts, 3);
+            break;
+        }
+        case StudioIconType::STOP: {
+            float r = size * 0.32f;
+            g.FillRectangle(&brush, cx - r, cy - r, r * 2.0f, r * 2.0f);
+            break;
+        }
+        default: break;
+    }
+}
+
+void DrawModernPillButton(Graphics& g, const Rect& r, const wchar_t* text, bool isHover, Color accentColor, bool isPrimary = false, StudioIconType icon = StudioIconType::NONE) {
     g.SetSmoothingMode(SmoothingModeAntiAlias);
 
     GraphicsPath path;
@@ -639,11 +687,25 @@ void DrawModernPillButton(Graphics& g, const Rect& r, const wchar_t* text, bool 
     }
 
     Gdiplus::Font fontBtn(L"Segoe UI", isPrimary ? 11.0f : 9.5f, FontStyleBold, UnitPoint);
-    SolidBrush brushText(isPrimary ? Color(255, 255, 255, 255) : (isHover ? Color(255, 255, 255, 255) : Color(255, 203, 213, 225)));
-    StringFormat sf;
-    sf.SetAlignment(StringAlignmentCenter);
-    sf.SetLineAlignment(StringAlignmentCenter);
-    g.DrawString(text, -1, &fontBtn, RectF((float)r.X, (float)r.Y, (float)r.Width, (float)r.Height), &sf, &brushText);
+    Color txtCol = isPrimary ? Color(255, 255, 255, 255) : (isHover ? Color(255, 255, 255, 255) : Color(255, 203, 213, 225));
+    SolidBrush brushText(txtCol);
+
+    if (icon != StudioIconType::NONE) {
+        RectF textBounds;
+        g.MeasureString(text, -1, &fontBtn, PointF(0, 0), &textBounds);
+        float iconSize = 14.0f;
+        float totalW = iconSize + 6.0f + textBounds.Width;
+        float startX = (float)r.X + ((float)r.Width - totalW) / 2.0f;
+        float centerY = (float)r.Y + (float)r.Height / 2.0f;
+
+        DrawVectorStudioIcon(g, icon, startX + iconSize / 2.0f, centerY, iconSize, txtCol);
+        g.DrawString(text, -1, &fontBtn, PointF(startX + iconSize + 6.0f, centerY - textBounds.Height / 2.0f + 0.5f), &brushText);
+    } else {
+        StringFormat sf;
+        sf.SetAlignment(StringAlignmentCenter);
+        sf.SetLineAlignment(StringAlignmentCenter);
+        g.DrawString(text, -1, &fontBtn, RectF((float)r.X, (float)r.Y, (float)r.Width, (float)r.Height), &sf, &brushText);
+    }
 }
 
 void DrawDynamicLevelMeter(Graphics& g, int x, int y, int w, int h, float rms) {
@@ -888,10 +950,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             std::string devName;
             {
                 std::lock_guard<std::mutex> lock(g_Engine.discoveryMutex);
-                devName = g_Engine.hasDiscoveredDevice.load() ? ("[●] " + g_Engine.discoveredDeviceName) : "Auto-Pair";
+                devName = g_Engine.hasDiscoveredDevice.load() ? g_Engine.discoveredDeviceName : "Auto-Pair";
             }
             std::wstring wDevName(devName.begin(), devName.end());
-            DrawModernPillButton(graphics, g_rAutoPairBtn, wDevName.c_str(), g_hoverElement == 10, Color(255, 16, 185, 129));
+            DrawModernPillButton(graphics, g_rAutoPairBtn, wDevName.c_str(), g_hoverElement == 10, Color(255, 16, 185, 129), false, StudioIconType::SMARTPHONE);
 
             // Card 2: Audio Dynamics & Telemetry
             DrawModernGlassCard(graphics, pad, 202, cardW, 90, L"AUDIO TRANSMISSION STATUS", g_Engine.isStreaming.load() ? L"STREAMING LIVE" : L"IDLE", g_Engine.isStreaming.load() ? Color(255, 16, 185, 129) : Color(255, 148, 163, 184));
@@ -906,7 +968,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
             // Action Button
             bool isStreaming = g_Engine.isStreaming.load();
-            DrawModernPillButton(graphics, g_rStreamBtn, isStreaming ? L"STOP AUDIO STREAM" : L"START AUDIO STREAM", g_hoverElement == 40, Color(255, 0, 210, 255), true);
+            DrawModernPillButton(graphics, g_rStreamBtn, isStreaming ? L"STOP AUDIO STREAM" : L"START AUDIO STREAM", g_hoverElement == 40, Color(255, 0, 210, 255), true, isStreaming ? StudioIconType::STOP : StudioIconType::PLAY);
 
             BitBlt(hdcScreen, 0, 0, width, height, hdcMem, 0, 0, SRCCOPY);
 
