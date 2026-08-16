@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <!-- Deep Dark Slate Rounded Base -->
+  <rect width="120" height="120" rx="28" fill="#141D31"/>
+  
+  <!-- Outer Dark Ring -->
+  <circle cx="60" cy="60" r="42" stroke="#253553" stroke-width="6"/>
+  
+  <!-- Inner Aperture Ring -->
+  <circle cx="60" cy="60" r="18" stroke="#1E2A42" stroke-width="4"/>
+  <circle cx="60" cy="60" r="16" stroke="#2569B5" stroke-width="2" stroke-dasharray="3 3" opacity="0.6"/>
+
+  <!-- Left Audio Waveform (Blue/Cyan) -->
+  <path d="M16 60h12l8-22 8 44 8-34 8 12" stroke="#38BDF8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Right Audio Waveform (Purple/Indigo) -->
+  <path d="M60 60h8l8-12 8 34 8-44 8 22h14" stroke="#818CF8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,39 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- Deep Navy Background Circle -->
+    <path
+        android:fillColor="#0A192F"
+        android:pathData="M60,10 A50,50 0 1,0 60,110 A50,50 0 1,0 60,10 Z"/>
+
+    <!-- Dark Navy Outer Ring 'O' -->
+    <path
+        android:fillColor="#061B44"
+        android:pathData="M60,24 A36,36 0 1,0 60,96 A36,36 0 1,0 60,24 Z M60,42 A18,18 0 1,1 60,78 A18,18 0 1,1 60,42 Z"/>
+
+    <!-- Inner Glow Arc Cyan -->
+    <path
+        android:strokeColor="#00D2FF"
+        android:strokeWidth="2.5"
+        android:pathData="M42,60 A18,18 0 0,1 78,60"/>
+
+    <!-- Left Cyan Audio Waveform -->
+    <path
+        android:strokeColor="#00D2FF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M12,60 L24,60 L32,38 L40,82 L48,48 L56,60"/>
+
+    <!-- Right Purple Audio Waveform -->
+    <path
+        android:strokeColor="#A855F7"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M64,60 L72,48 L80,82 L88,38 L96,60 L108,60"/>
+
+</vector>

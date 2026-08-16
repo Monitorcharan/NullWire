@@ -1,0 +1,33 @@
+# Node dependencies
+node_modules/
+website/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build artifacts & temporary files
+build/
+*.obj
+*.o
+*.res
+*.res)
+*.pyc
+__pycache__/
+
+# Toolchain
+toolchain/
+
+# Android Build & Gradle
+.gradle/
+build/
+*/build/
+*/*/build/
+.cxx/
+*/.cxx/
+local.properties
+.idea/
+*.iml
+
+# Ensure website downloads are tracked and deployable to Render
+!website/downloads/*.exe
+!website/downloads/*.apk

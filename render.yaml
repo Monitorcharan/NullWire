@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: nullwire
+    env: node
+    plan: free
+    rootDir: website
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production

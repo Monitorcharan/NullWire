@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="NullWire streams real-time PC audio to your Android phone over Wi-Fi with sub-3ms latency. Turn any wired earphones into a wireless gaming headset." />
+  <meta name="theme-color" content="#ffffff" />
+  <title>NullWire — Low-Latency Wireless PC Audio to Android</title>
+  <link rel="icon" href="favicon.ico" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  
+  <!-- Navigation Header -->
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <a class="nav-brand" href="#top" aria-label="NullWire Home">
+        <img src="assets/logo.svg" alt="NullWire Logo" class="brand-logo" />
+        <span>NullWire</span>
+      </a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-navigation">
+        <span class="sr-only">Toggle navigation menu</span>
+        <span></span><span></span>
+      </button>
+      <nav class="nav-links" id="site-navigation" aria-label="Main navigation">
+        <a href="#how-it-works">How It Works</a>
+        <a href="#features">Features</a>
+        <a href="#editions">Editions</a>
+        <a href="#faq">FAQ</a>
+        <a href="#download" class="nav-download">Download</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main-content">
+    
+    <!-- 1. HERO SECTION -->
+    <section class="hero" id="top">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <h1>Turn your phone into a wireless PC audio headset.</h1>
+          
+          <p class="hero-text">
+            Stream uncompressed 48kHz PC audio directly to your Android earphones over local Wi-Fi. Experience zero perceptible latency, dedicated gaming &amp; music profiles, 3D spatial surround, and reverse microphone support.
+          </p>
+
+          <!-- Direct Download Action Group right in Hero -->
+          <div class="hero-download-block">
+            <div class="hero-btns">
+              <a href="downloads/NullWire_Setup.exe" class="button button-primary" download>
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download NullWire Pro (Windows)
+              </a>
+              <a href="downloads/NullWireReceiver.apk" class="button button-secondary" download>
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                Get Android APK
+              </a>
+            </div>
+            <div class="hero-subtext">
+              <span>Windows 10 / 11 · Android 8.0+</span>
+              <span class="sep">•</span>
+              <span>100% Free &amp; Local LAN</span>
+              <span class="sep">•</span>
+              <a href="#editions">View Standard Edition</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Interactive Studio Console Preview -->
+        <div class="console-card" aria-label="NullWire Live Stream Dashboard">
+          <div class="console-header">
+            <div class="console-title">
+              <img src="assets/logo.svg" alt="" class="console-icon" />
+              <span>NullWire Pro Console</span>
+            </div>
+            <div class="stream-badge">
+              <span class="pulse-indicator"></span>
+              <span>STREAMING (2.67ms)</span>
+            </div>
+          </div>
+
+          <div class="console-body">
+            <!-- Audio Path -->
+            <div class="audio-path">
+              <div class="path-node">
+                <span class="node-type">PC Source</span>
+                <span class="node-name">Realtek® Audio (WASAPI)</span>
+              </div>
+              <div class="path-arrow">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </div>
+              <div class="path-node">
+                <span class="node-type">Phone Receiver</span>
+                <span class="node-name">Pixel 8 Pro (192.168.1.15)</span>
+              </div>
+            </div>
+
+            <!-- Profile Selector -->
+            <div class="console-section">
+              <div class="section-label">Acoustic Profile</div>
+              <div class="profile-chips">
+                <button class="chip active" data-profile="gaming" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="4"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="11" r="1"/><circle cx="18" cy="13" r="1"/></svg>
+                  Gaming (2.67ms)
+                </button>
+                <button class="chip" data-profile="hifi" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+                  Hi-Fi Harman
+                </button>
+                <button class="chip" data-profile="cinema" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+                  Cinema 3D
+                </button>
+                <button class="chip" data-profile="direct" type="button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                  Direct
+                </button>
+              </div>
+            </div>
+
+            <!-- Live Visualizer Section -->
+            <div class="console-visuals">
+              <div class="visual-box">
+                <div class="box-title">7-Band Spectrum</div>
+                <div class="spectrum-bars">
+                  <div class="spec-bar-wrap"><div class="spec-bar b1"></div><span>60Hz</span></div>
+                  <div class="spec-bar-wrap"><div class="spec-bar b2"></div><span>150Hz</span></div>
+                  <div class="spec-bar-wrap"><div class="spec-bar b3"></div><span>400Hz</span></div>
+                  <div class="spec-bar-wrap"><div class="spec-bar b4"></div><span>1kHz</span></div>
+                  <div class="spec-bar-wrap"><div class="spec-bar b5"></div><span>2.5k</span></div>
+                  <div class="spec-bar-wrap"><div class="spec-bar b6"></div><span>6kHz</span></div>
+                  <div class="spec-bar-wrap"><div class="spec-bar b7"></div><span>14k</span></div>
+                </div>
+              </div>
+
+              <div class="visual-box">
+                <div class="box-title-row">
+                  <div class="box-title">Stereo PCM Waveform</div>
+                  <div class="ch-tags">
+                    <span class="tag-l">CH-L</span>
+                    <span class="tag-r">CH-R</span>
+                  </div>
+                </div>
+                <canvas id="scopeCanvas" width="220" height="60"></canvas>
+              </div>
+            </div>
+
+            <!-- Active Features Strip -->
+            <div class="features-pill-row">
+              <span class="active-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                3D Binaural Spatial Audio Active
+              </span>
+              <span class="active-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                Reverse Phone Mic Linked
+              </span>
+            </div>
+
+            <!-- Telemetry Footer -->
+            <div class="console-footer">
+              <div class="metric-item">Latency: <strong>2.67 ms</strong></div>
+              <div class="metric-item">Jitter: <strong>±0.12 ms</strong></div>
+              <div class="metric-item">Loss: <strong class="text-green">0.0%</strong></div>
+              <div class="metric-item">Format: <strong>48kHz / 16-Bit Lossless</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. QUICK HOW IT WORKS STRIP -->
+    <section class="section section-soft" id="how-it-works">
+      <div class="container">
+        <div class="section-header centered">
+          <span class="section-tag">Simple 3-Step Setup</span>
+          <h2>How NullWire Works</h2>
+          <p>Instant audio streaming in three straightforward steps with zero configuration.</p>
+        </div>
+
+        <div class="steps-grid">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <h3>Install Applications</h3>
+            <p>Download the Windows sender app and install the Android receiver APK on your phone.</p>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <h3>Connect on Wi-Fi</h3>
+            <p>Connect both devices to the same 5GHz Wi-Fi network (or enable USB Tethering for wired sub-2ms speed).</p>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <h3>Start Streaming</h3>
+            <p>Select your audio device, click your discovered phone, and press Start. Real-time audio plays instantly.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. CORE FEATURES BREAKDOWN -->
+    <section class="section" id="features">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-tag">Audio Engineering</span>
+          <h2>Built for Gamers, Streamers &amp; Audiophiles</h2>
+          <p>Everything you need for low-latency wireless sound and voice streaming.</p>
+        </div>
+
+        <div class="features-grid">
+          <div class="feature-item">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </div>
+            <h3>Sub-3ms DMA Latency</h3>
+            <p>Direct WASAPI loopback capture on Windows and native Android AAudio MMAP hardware playback for zero perceptible sound delay.</p>
+          </div>
+
+          <div class="feature-item">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+            </div>
+            <h3>4 Acoustic Sound Profiles</h3>
+            <p>Tailored DSP presets: Gaming (2.67ms low latency), Hi-Fi Harman curve, Cinema 3D widening, and Bit-Perfect Direct mode.</p>
+          </div>
+
+          <div class="feature-item">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+            </div>
+            <h3>3D Binaural Spatial Audio</h3>
+            <p>Virtual 7.1 pinna spatial crossfeed modeling realistic interaural time and level differences for pinpoint gaming directional cues.</p>
+          </div>
+
+          <div class="feature-item">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            </div>
+            <h3>Reverse Phone Microphone</h3>
+            <p>Use your phone or connected headset mic as a wireless PC microphone in Discord, TeamSpeak, and OBS with acoustic echo cancellation.</p>
+          </div>
+
+          <div class="feature-item">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            </div>
+            <h3>Real-Time Telemetry HUD</h3>
+            <p>Hardware-accelerated 7-band frequency spectrum analyzer, dual-channel PCM oscilloscope, and live latency jitter tracking.</p>
+          </div>
+
+          <div class="feature-item">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <h3>100% Local &amp; Private</h3>
+            <p>Peer-to-peer streaming over local Wi-Fi or USB. No external cloud servers, no account logins, and zero telemetry tracking.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. EDITIONS COMPARISON & DOWNLOADS -->
+    <section class="section section-soft" id="editions">
+      <div class="container">
+        <div class="section-header centered">
+          <span class="section-tag">Product Editions</span>
+          <h2>Choose Your NullWire Edition</h2>
+          <p>Download the streamlined free player or the full studio suite.</p>
+        </div>
+
+        <div class="editions-grid">
+          <!-- Standard Edition Card -->
+          <div class="edition-card">
+            <div class="edition-header">
+              <span class="edition-tag">Standard Edition</span>
+              <h3>NullWire</h3>
+              <p class="edition-desc">Clean, lightweight, single-purpose audio streaming player.</p>
+              <div class="latency-badge">
+                <span class="val">&lt; 2.67 ms</span>
+                <span class="lbl">DMA Latency</span>
+              </div>
+            </div>
+
+            <ul class="edition-features">
+              <li>✓ Direct 48kHz lossless PCM audio streaming</li>
+              <li>✓ Single-screen clean minimalist interface</li>
+              <li>✓ 1-Click automatic Wi-Fi LAN discovery</li>
+              <li>✓ Real-time hardware audio level meter</li>
+              <li>✓ Zero DSP overhead and minimal RAM usage</li>
+            </ul>
+
+            <div class="edition-actions">
+              <a href="downloads/NullWire_Standard_Setup.exe" class="button button-outline full-width" download>
+                Download Standard Setup (.exe)
+              </a>
+              <div class="alt-links">
+                <a href="downloads/NullWire_Standard.exe" download>Portable EXE</a>
+                <span>•</span>
+                <a href="downloads/NullWire_Standard.apk" download>Android APK</a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pro Edition Card -->
+          <div class="edition-card featured">
+            <div class="edition-header">
+              <div class="badge-row">
+                <span class="edition-tag featured-tag">Pro Studio Suite</span>
+                <span class="ver-tag">v2.0</span>
+              </div>
+              <h3>NullWire Pro</h3>
+              <p class="edition-desc">Full audio studio with visualizers, EQ profiles, and wireless microphone.</p>
+              <div class="latency-badge">
+                <span class="val text-blue">&lt; 2.67 ms</span>
+                <span class="lbl">DMA + Studio DSP</span>
+              </div>
+            </div>
+
+            <ul class="edition-features">
+              <li>✓ Hardware-accelerated studio control dashboard</li>
+              <li>✓ 7-Band spectrum analyzer &amp; stereo oscilloscope</li>
+              <li>✓ 4 Sound profiles (Gaming, Hi-Fi, Cinema 3D, Direct)</li>
+              <li>✓ 3D Binaural HRTF virtual 7.1 spatial surround</li>
+              <li>✓ Reverse wireless phone microphone for Discord / OBS</li>
+              <li>✓ Live latency &amp; jitter HUD with system notifications</li>
+            </ul>
+
+            <div class="edition-actions">
+              <a href="downloads/NullWire_Setup.exe" class="button button-primary full-width" download>
+                Download Pro Setup (.exe)
+              </a>
+              <div class="alt-links">
+                <a href="downloads/NullWireSender.exe" download>Portable Studio EXE</a>
+                <span>•</span>
+                <a href="downloads/NullWireReceiver.apk" download>Android Studio APK</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. FAQ SECTION -->
+    <section class="section" id="faq">
+      <div class="container narrow-container">
+        <div class="section-header centered">
+          <span class="section-tag">Help &amp; FAQ</span>
+          <h2>Frequently Asked Questions</h2>
+        </div>
+
+        <div class="faq-accordion">
+          <div class="faq-item open">
+            <button class="faq-btn" aria-expanded="true" type="button">
+              <span>Which edition should I choose?</span>
+              <span class="faq-arrow">+</span>
+            </button>
+            <div class="faq-body">
+              <p>Choose <strong>NullWire Standard</strong> if you want lightweight, instant audio streaming with zero extra settings. Choose <strong>NullWire Pro</strong> if you want real-time frequency spectrum visualizers, 4 acoustic profiles (Gaming, Hi-Fi, Cinema, Direct), 3D spatial surround sound, reverse phone microphone streaming, and notifications.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-btn" aria-expanded="false" type="button">
+              <span>How do I achieve the lowest possible latency?</span>
+              <span class="faq-arrow">+</span>
+            </button>
+            <div class="faq-body">
+              <p>Connect your PC and Android phone over a <strong>5GHz Wi-Fi</strong> network for optimal wireless performance. For tournament or wired setups, enable <strong>USB Tethering</strong> on your Android phone; NullWire will stream directly through the virtual Ethernet adapter with sub-2ms latency.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-btn" aria-expanded="false" type="button">
+              <span>Does audio ever leave my local home network?</span>
+              <span class="faq-arrow">+</span>
+            </button>
+            <div class="faq-body">
+              <p>No. NullWire operates <strong>100% locally on your LAN</strong>. Audio packets are sent peer-to-peer directly between your PC and phone. No external cloud servers, logins, or telemetry trackers are involved.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-btn" aria-expanded="false" type="button">
+              <span>Can I use my phone as a PC microphone in Discord or OBS?</span>
+              <span class="faq-arrow">+</span>
+            </button>
+            <div class="faq-body">
+              <p>Yes. In <strong>NullWire Pro</strong>, tap Start Phone Mic in the Android app and click Receive Phone Mic on PC. Your phone or connected headset microphone will stream back to Windows with acoustic echo suppression and automatic gain control.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. FINAL DOWNLOAD CALL TO ACTION -->
+    <section class="section final-section" id="download">
+      <div class="container">
+        <div class="cta-box">
+          <div class="cta-content">
+            <h2>Get started with zero-latency audio today.</h2>
+            <p>100% free, open, and local wireless audio streaming for Windows and Android.</p>
+          </div>
+          <div class="cta-buttons">
+            <a href="downloads/NullWire_Setup.exe" class="button button-primary" download>
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Windows Setup (.exe)
+            </a>
+            <a href="downloads/NullWireReceiver.apk" class="button button-outline" download>
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              Android Receiver (.apk)
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container footer-wrap">
+      <div class="footer-brand">
+        <img src="assets/logo.svg" alt="NullWire" class="footer-logo" />
+        <span>NullWire Audio Engineering</span>
+      </div>
+      <p>© 2026 NullWire. Sub-3ms lossless wireless audio for Windows &amp; Android.</p>
+      <a href="#top" class="back-to-top">Back to top ↑</a>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
