@@ -834,19 +834,21 @@ svg {
   color: var(--line);
 }
 
-/* Safety & Installation Section */
+/* ==========================================================================
+   SAFETY & INSTALLATION SECTION STYLING
+   ========================================================================== */
 .trust-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 24px;
-  margin-bottom: 36px;
+  margin-bottom: 32px;
 }
 
 .trust-card {
-  background: #fff;
+  background: #ffffff;
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 28px 24px;
+  padding: 24px 20px;
   box-shadow: var(--shadow-sm);
 }
 
@@ -856,21 +858,22 @@ svg {
   background: var(--green-pale);
   color: var(--green);
   border-radius: 8px;
-  display: grid;
-  place-items: center;
-  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
 }
 
 .trust-icon svg {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
 }
 
 .trust-card h3 {
   font-size: 1.05rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
   margin-bottom: 8px;
+  letter-spacing: -0.02em;
 }
 
 .trust-card p {
@@ -886,111 +889,86 @@ svg {
   text-underline-offset: 3px;
 }
 
-/* SmartScreen Help Box */
-.smartscreen-box {
-  background: #f0f7ff;
-  border: 1px solid #c7e0fc;
+/* SmartScreen Card */
+.smartscreen-card {
+  background: #ffffff;
+  border: 1px solid #bfdbfe;
   border-radius: 14px;
   overflow: hidden;
   box-shadow: var(--shadow-sm);
 }
 
-.smartscreen-header {
-  background: #e2f0fe;
-  padding: 16px 24px;
-  border-bottom: 1px solid #c7e0fc;
-}
-
-.smartscreen-title {
+.smartscreen-banner {
+  background: #eff6ff;
+  border-bottom: 1px solid #dbeafe;
+  padding: 14px 20px;
   display: flex;
   align-items: center;
   gap: 10px;
-  font-weight: 700;
-  color: #1e3a8a;
-  font-size: 1rem;
-}
-
-.info-shield {
-  width: 18px;
-  height: 18px;
   color: var(--blue);
-}
-
-.smartscreen-body {
-  padding: 26px 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.smartscreen-intro {
   font-size: 0.95rem;
-  color: #334155;
-  line-height: 1.6;
 }
 
-.guide-steps-grid {
+.smartscreen-banner svg {
+  width: 20px;
+  height: 20px;
+}
+
+.smartscreen-content {
+  padding: 24px 22px;
+}
+
+.smartscreen-reason {
+  font-size: 0.92rem;
+  color: #334155;
+  margin-bottom: 20px;
+  line-height: 1.55;
+}
+
+.steps-dual-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
+  gap: 16px;
 }
 
-.guide-step {
-  background: #fff;
-  border: 1px solid #d0e4fa;
+.install-step-item {
+  background: var(--soft);
+  border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 20px 18px;
+  padding: 16px 14px;
 }
 
-.guide-num {
+.step-badge {
   display: inline-block;
   font-family: 'DM Mono', monospace;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  text-transform: uppercase;
   color: var(--blue);
   background: var(--blue-pale);
   padding: 2px 8px;
   border-radius: 4px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
-.guide-step h4 {
-  font-size: 0.98rem;
-  font-weight: 700;
-  margin-bottom: 6px;
+.install-step-item strong {
+  display: block;
+  font-size: 0.92rem;
+  margin-bottom: 4px;
+  color: var(--ink);
 }
 
-.guide-step p {
-  font-size: 0.85rem;
+.install-step-item p {
+  font-size: 0.82rem;
   color: var(--muted);
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
-.guide-step code {
+.install-step-item code {
   font-family: 'DM Mono', monospace;
-  font-size: 0.78rem;
-  background: #f1f5f9;
+  background: #e2e8f0;
   padding: 1px 4px;
-  border-radius: 4px;
-}
-
-.android-safety-note {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: #fff;
-  border: 1px solid #d0e4fa;
-  border-radius: 8px;
-  padding: 14px 18px;
-  font-size: 0.86rem;
-  color: #334155;
-}
-
-.android-safety-note svg {
-  width: 18px;
-  height: 18px;
-  color: var(--green);
+  border-radius: 3px;
+  font-size: 0.76rem;
 }
 
 /* FAQ Accordion */
@@ -1124,7 +1102,7 @@ svg {
     grid-template-columns: 1fr;
     gap: 44px;
   }
-  .features-grid, .trust-grid, .guide-steps-grid {
+  .features-grid, .trust-grid, .steps-dual-row {
     grid-template-columns: repeat(2, 1fr);
   }
   .editions-grid {
@@ -1191,7 +1169,7 @@ svg {
     flex-direction: column;
     align-items: stretch;
   }
-  .features-grid, .trust-grid, .guide-steps-grid {
+  .features-grid, .trust-grid, .steps-dual-row {
     grid-template-columns: 1fr;
   }
   .console-visuals {
