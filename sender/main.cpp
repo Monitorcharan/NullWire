@@ -1497,9 +1497,9 @@ void DrawFuturisticLatencyChart(Graphics& g, int x, int y, int w, int h) {
     float jit = g_Engine.jitterMs.load();
     uint64_t totalPackets = g_Engine.sendPacketCount.load();
 
-    swprintf_s(telemetryHdr, L"LATENCY: %.2f ms   ·   JITTER: ±%.2f ms   ·   PACKETS: %llu", curLat, jit, totalPackets);
+    swprintf_s(telemetryHdr, L"LAT: %.2f ms  ·  JIT: ±%.2f ms  ·  PKTS: %llu", curLat, jit, totalPackets);
 
-    DrawModernGlassCard(g, x, y, w, h, L"HARDWARE DMA LATENCY & NETWORK JITTER (REAL-TIME)", telemetryHdr, Color(255, 16, 185, 129));
+    DrawModernGlassCard(g, x, y, w, h, L"HARDWARE LATENCY & NETWORK JITTER", telemetryHdr, Color(255, 16, 185, 129));
 
     int gx = x + 16;
     int gy = y + 36;
@@ -1615,27 +1615,27 @@ void UpdateUiLayout(int width, int height) {
     int cardW = width - pad * 2;
     if (cardW < 400) cardW = 400;
 
-    // Presets Row (Y: 72, H: 36)
+    // Presets Row (Y: 70, H: 36)
     int btnPresetW = (cardW - 18) / 4;
     for (int i = 0; i < 4; i++) {
-        g_ui.rPresets[i] = Rect(pad + i * (btnPresetW + 6), 72, btnPresetW, 36);
+        g_ui.rPresets[i] = Rect(pad + i * (btnPresetW + 6), 70, btnPresetW, 36);
     }
 
-    // Card 1: Connection (Y: 118, H: 104)
+    // Card 1: Connection (Y: 116, H: 104)
     int editW = cardW - 190;
-    g_ui.rAutoPairBtn = Rect(pad + 16 + editW + 10, 144, 150, 30);
-    if (g_hIpEdit) SetWindowPos(g_hIpEdit, NULL, pad + 16, 145, editW, 28, SWP_NOZORDER);
-    if (g_hDeviceCombo) SetWindowPos(g_hDeviceCombo, NULL, pad + 16, 182, cardW - 32, 200, SWP_NOZORDER);
+    g_ui.rAutoPairBtn = Rect(pad + 16 + editW + 10, 142, 150, 28);
+    if (g_hIpEdit) SetWindowPos(g_hIpEdit, NULL, pad + 16, 143, editW, 26, SWP_NOZORDER);
+    if (g_hDeviceCombo) SetWindowPos(g_hDeviceCombo, NULL, pad + 16, 178, cardW - 32, 200, SWP_NOZORDER);
 
-    // Card 2: DSP Tuning (Y: 232, H: 136)
-    g_ui.rBassTrack = Rect(pad + 16, 266, cardW - 32, 20);
-    g_ui.rTrebleTrack = Rect(pad + 16, 308, cardW - 32, 20);
-    g_ui.rSpatialToggle = Rect(pad + 16, 338, cardW - 32, 24);
+    // Card 2: DSP Tuning (Y: 230, H: 164) - Ample vertical clearance with zero overlaps
+    g_ui.rBassTrack = Rect(pad + 16, 280, cardW - 32, 18);
+    g_ui.rTrebleTrack = Rect(pad + 16, 326, cardW - 32, 18);
+    g_ui.rSpatialToggle = Rect(pad + 16, 358, cardW - 32, 24);
 
-    // Action Buttons Row (Y: 378, H: 44)
+    // Action Buttons Row (Y: 404, H: 44)
     int actBtnW = (cardW - 12) / 2;
-    g_ui.rStreamBtn = Rect(pad, 378, actBtnW, 44);
-    g_ui.rMicBtn = Rect(pad + actBtnW + 12, 378, actBtnW, 44);
+    g_ui.rStreamBtn = Rect(pad, 404, actBtnW, 44);
+    g_ui.rMicBtn = Rect(pad + actBtnW + 12, 404, actBtnW, 44);
 }
 
 void RestoreMainWindow(HWND hWnd) {
@@ -2013,11 +2013,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             SelectObject(hdcMem, g_hFontTitle);
             SetTextColor(hdcMem, COLOR_TEXT_MAIN);
             SetBkMode(hdcMem, TRANSPARENT);
-            TextOutW(hdcMem, 78, 16, L"NullWire Pro (Beta)", 19);
+            const wchar_t* titleStr = L"NullWire Pro (Beta)";
+            TextOutW(hdcMem, 78, 16, titleStr, (int)wcslen(titleStr));
 
             SelectObject(hdcMem, g_hFontSub);
             SetTextColor(hdcMem, RGB(148, 163, 184));
-            TextOutW(hdcMem, 78, 42, L"Ultra-Low Latency Lossless Wireless Audio Studio  ·  v2.0 Beta", 61);
+            const wchar_t* subTitleStr = L"Ultra-Low Latency Lossless Wireless Audio Studio · v2.0 Beta";
+            TextOutW(hdcMem, 78, 42, subTitleStr, (int)wcslen(subTitleStr));
 
             // Scenario status pill
             Gdiplus::Font fontPill(L"Segoe UI", 8.5f, FontStyleBold, UnitPoint);
@@ -2034,31 +2036,31 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             int pad = 24;
             int cardW = width - pad * 2;
 
-            // 2. Preset Pills (Interactive Modern GDI+)
+            // 2. Preset Pills (Interactive Modern GDI+) - Clean typography without broken emoji boxes
             ScenarioMode curMode = g_Engine.currentScenario.load();
-            const wchar_t* presetTitles[] = {L"🎵 Hi-Fi Harman", L"🎮 Gaming 2.67ms", L"🎬 Cinema 3D", L"🎯 Bit-Perfect"};
+            const wchar_t* presetTitles[] = {L"Hi-Fi Harman", L"Gaming 2.67ms", L"Cinema 3D", L"Bit-Perfect"};
             Color presetColors[] = {Color(255, 16, 185, 129), Color(255, 245, 158, 11), Color(255, 168, 85, 247), Color(255, 0, 210, 255)};
 
             for (int i = 0; i < 4; i++) {
                 DrawModernPillButton(graphics, g_ui.rPresets[i], presetTitles[i], (int)curMode == i, g_hoverElement == i, presetColors[i]);
             }
 
-            // 3. Card 1 Background (Connection)
-            DrawModernGlassCard(graphics, pad, 118, cardW, 104, L"DEVICE AUTO-PAIRING & AUDIO ENDPOINT", L"Wi-Fi LAN", Color(255, 0, 210, 255));
+            // 3. Card 1 Background (Connection) (Y: 116, H: 104)
+            DrawModernGlassCard(graphics, pad, 116, cardW, 104, L"DEVICE AUTO-PAIRING & AUDIO ENDPOINT", L"Wi-Fi LAN", Color(255, 0, 210, 255));
 
             // Auto-Pair Button (Interactive GDI+)
             std::string devName;
             {
                 std::lock_guard<std::mutex> lock(g_Engine.discoveryMutex);
-                devName = g_Engine.hasDiscoveredDevice.load() ? ("🟢 " + g_Engine.discoveredDeviceName) : "🔍 Auto-Pair Phone";
+                devName = g_Engine.hasDiscoveredDevice.load() ? ("[●] " + g_Engine.discoveredDeviceName) : "Auto-Pair Phone";
             }
             std::wstring wDevName(devName.begin(), devName.end());
             DrawModernPillButton(graphics, g_ui.rAutoPairBtn, wDevName.c_str(), false, g_hoverElement == 10, Color(255, 16, 185, 129));
 
-            // 4. Card 2 Background (DSP Equalizer)
-            DrawModernGlassCard(graphics, pad, 232, cardW, 136, L"STUDIO ACOUSTIC DSP & 3D BINAURAL MATRIX", L"64-BIT DITHERED", Color(255, 168, 85, 247));
+            // 4. Card 2 Background (DSP Equalizer) (Y: 230, H: 164)
+            DrawModernGlassCard(graphics, pad, 230, cardW, 164, L"STUDIO ACOUSTIC DSP & 3D BINAURAL MATRIX", L"64-BIT DITHERED", Color(255, 168, 85, 247));
 
-            // Custom Sliders
+            // Custom Sliders with generous breathing room
             float curBass = g_Engine.bassBoostDb.load();
             wchar_t bassStr[16];
             swprintf_s(bassStr, L"+%.1f dB", curBass);
@@ -2072,18 +2074,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             // Custom Toggle Switch
             DrawModernToggle(graphics, g_ui.rSpatialToggle, g_Engine.enableSpatial3D.load(), L"Binaural 3D Spatial Matrix (HRTF 7.1 Crossfeed & Pinna Acoustics)", g_hoverElement == 30);
 
-            // 5. Action Buttons (Interactive GDI+)
+            // 5. Action Buttons (Interactive GDI+) (Y: 404, H: 44)
             bool isStreaming = g_Engine.isStreaming.load();
-            DrawModernPillButton(graphics, g_ui.rStreamBtn, isStreaming ? L"⏹ STOP AUDIO STREAM" : L"▶ START AUDIO STREAM", isStreaming, g_hoverElement == 40, Color(255, 0, 210, 255), true);
+            DrawModernPillButton(graphics, g_ui.rStreamBtn, isStreaming ? L"STOP AUDIO STREAM" : L"START AUDIO STREAM", isStreaming, g_hoverElement == 40, Color(255, 0, 210, 255), true);
 
             bool isMic = g_Engine.isMicReceiving.load();
-            DrawModernPillButton(graphics, g_ui.rMicBtn, isMic ? L"⏹ STOP PHONE MIC" : L"🎙 RECEIVE PHONE MIC", isMic, g_hoverElement == 41, Color(255, 168, 85, 247));
+            DrawModernPillButton(graphics, g_ui.rMicBtn, isMic ? L"STOP PHONE MIC" : L"RECEIVE PHONE MIC", isMic, g_hoverElement == 41, Color(255, 168, 85, 247));
 
-            // 6. Card 3: Real-Time Spectrum & Oscilloscope (Y: 432, H: 160)
-            DrawSpectrumAndOscilloscope(graphics, pad, 432, cardW, 160);
+            // 6. Card 3: Real-Time Spectrum & Oscilloscope (Y: 460, H: 156)
+            DrawSpectrumAndOscilloscope(graphics, pad, 460, cardW, 156);
 
-            // 7. Card 4: Futuristic Realtime Latency Area Chart (Y: 602)
-            int chartY = 602;
+            // 7. Card 4: Futuristic Realtime Latency Area Chart (Y: 626)
+            int chartY = 626;
             int chartH = height - chartY - 20;
             if (chartH > 80) {
                 DrawFuturisticLatencyChart(graphics, pad, chartY, cardW, chartH);

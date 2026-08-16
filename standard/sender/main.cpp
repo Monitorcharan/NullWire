@@ -888,7 +888,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             std::string devName;
             {
                 std::lock_guard<std::mutex> lock(g_Engine.discoveryMutex);
-                devName = g_Engine.hasDiscoveredDevice.load() ? ("🟢 " + g_Engine.discoveredDeviceName) : "🔍 Auto-Pair";
+                devName = g_Engine.hasDiscoveredDevice.load() ? ("[●] " + g_Engine.discoveredDeviceName) : "Auto-Pair";
             }
             std::wstring wDevName(devName.begin(), devName.end());
             DrawModernPillButton(graphics, g_rAutoPairBtn, wDevName.c_str(), g_hoverElement == 10, Color(255, 16, 185, 129));
@@ -906,7 +906,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
             // Action Button
             bool isStreaming = g_Engine.isStreaming.load();
-            DrawModernPillButton(graphics, g_rStreamBtn, isStreaming ? L"⏹ STOP AUDIO STREAM" : L"▶ START AUDIO STREAM", g_hoverElement == 40, Color(255, 0, 210, 255), true);
+            DrawModernPillButton(graphics, g_rStreamBtn, isStreaming ? L"STOP AUDIO STREAM" : L"START AUDIO STREAM", g_hoverElement == 40, Color(255, 0, 210, 255), true);
 
             BitBlt(hdcScreen, 0, 0, width, height, hdcMem, 0, 0, SRCCOPY);
 
