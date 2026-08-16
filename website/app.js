@@ -45,6 +45,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // Interactive SmartScreen Simulation Demo
+  const moreInfoBtn = document.getElementById('simMoreInfoBtn');
+  const appDetails = document.getElementById('simAppDetails');
+  const runBtn = document.getElementById('simRunBtn');
+  const successMsg = document.getElementById('simSuccessMsg');
+
+  if (moreInfoBtn && appDetails && runBtn) {
+    moreInfoBtn.addEventListener('click', () => {
+      appDetails.classList.toggle('show');
+      runBtn.classList.toggle('show');
+    });
+
+    runBtn.addEventListener('click', () => {
+      if (successMsg) {
+        successMsg.style.display = 'block';
+        setTimeout(() => {
+          successMsg.style.display = 'none';
+        }, 3500);
+      }
+    });
+  }
+
   // Live Stereo Scope Waveform Canvas
   const scopeCanvas = document.getElementById('scopeCanvas');
   if (scopeCanvas) {
