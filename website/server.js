@@ -43,14 +43,23 @@ app.get('/downloads/:filename', (req, res) => {
   fileStream.pipe(res);
 });
 
-// Serve Static Assets (HTML, CSS, JS, Images, Favicon)
+// Serve Static Assets with immediate cache-revalidation for HTML/CSS/JS
 app.use(express.static(PUBLIC_DIR, {
-  maxAge: '1d',
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html') || filePath.endsWith('.css') || filePath.endsWith('.js')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+    }
+  },
   index: 'index.html'
 }));
 
 // Fallback to index.html for SPA routes
 app.get('*', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
 });
 
