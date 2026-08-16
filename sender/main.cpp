@@ -118,6 +118,7 @@ static NOTIFYICONDATAW g_nid{};
 static bool g_InTray = false;
 static HINSTANCE g_hInstance = NULL;
 static HWND g_hMainWnd = NULL;
+static bool g_isMovingOrSizing = false;
 
 // ── Floating In-App Toast Notification State ────────────────────────────────
 struct InAppNotification {
@@ -153,7 +154,7 @@ void PostNotification(const std::wstring& title, const std::wstring& msg, Color 
         Shell_NotifyIconW(NIM_MODIFY, &nid);
     }
 
-    if (g_hMainWnd) {
+    if (g_hMainWnd && !g_isMovingOrSizing) {
         InvalidateRect(g_hMainWnd, NULL, FALSE);
     }
 }
@@ -238,6 +239,21 @@ public:
         a2 = (1.0 - alpha / A) / a0;
     }
 
+    void SetBandPass(double freq, double Q = 1.414, double sampleRate = 48000.0) {
+        double w0 = 2.0 * PI * freq / sampleRate;
+        double cosw0 = std::cos(w0);
+        double sinw0 = std::sin(w0);
+        double alpha = sinw0 / (2.0 * Q);
+        double a0 = 1.0 + alpha;
+        if (std::abs(a0) < 1e-12) return;
+
+        b0 = alpha / a0;
+        b1 = 0.0;
+        b2 = -alpha / a0;
+        a1 = (-2.0 * cosw0) / a0;
+        a2 = (1.0 - alpha) / a0;
+    }
+
     void SetLowPass(double freq, double sampleRate = 48000.0, double Q = 0.7071) {
         double w0 = 2.0 * PI * freq / sampleRate;
         double cosw0 = std::cos(w0);
@@ -282,7 +298,7 @@ public:
     }
 
     inline void ProcessStereo(double& l, double& r, float spatialAmount) {
-        if (spatialAmount <= 0.01f) return;
+        if (spatialAmount <= 0.005f) return;
 
         double directL = pinnaNotchFilter.Process(l, 0);
         double directR = pinnaNotchFilter.Process(r, 1);
@@ -299,84 +315,83 @@ public:
 
         delayIdx = (delayIdx + 1) % 32;
 
-        double crossFactor = 0.35 * spatialAmount;
-        double outL = directL + delayedShadowR * crossFactor;
-        double outR = directR + delayedShadowL * crossFactor;
-
-        l = outL * (1.0 / (1.0 + crossFactor * 0.5));
-        r = outR * (1.0 / (1.0 + crossFactor * 0.5));
+        double blend = (double)std::clamp(spatialAmount, 0.0f, 1.0f) * 0.38;
+        l = directL * (1.0 - blend * 0.4) + delayedShadowR * blend;
+        r = directR * (1.0 - blend * 0.4) + delayedShadowL * blend;
     }
 };
 
-inline double StudioMasterLimiter(double sample) {
-    constexpr double threshold = 0.90;
-    double absS = std::abs(sample);
-    if (absS <= threshold) return sample;
-    double excess = absS - threshold;
-    double compressed = threshold + (1.0 - threshold) * std::tanh(excess / (1.0 - threshold));
-    return (sample > 0) ? compressed : -compressed;
+// ── Studio Master Limiter with Soft-Knee Saturation ─────────────────────────
+inline double StudioMasterLimiter(double x) {
+    double threshold = 0.94;
+    double absX = std::abs(x);
+    if (absX <= threshold) return x;
+    double over = absX - threshold;
+    double compressed = threshold + (1.0 - threshold) * std::tanh(over / (1.0 - threshold));
+    return (x > 0.0) ? compressed : -compressed;
 }
 
-inline float GenerateTpdfDither(uint32_t& prng) {
-    prng = prng * 1664525u + 1013904223u;
-    uint32_t r1 = prng;
-    prng = prng * 1664525u + 1013904223u;
-    uint32_t r2 = prng;
-    float f1 = (float)(r1 >> 9) * (1.0f / 8388608.0f) - 1.0f;
-    float f2 = (float)(r2 >> 9) * (1.0f / 8388608.0f) - 1.0f;
-    return (f1 + f2) * (0.5f / 32768.0f);
+inline float GenerateTpdfDither(uint32_t& prngState) {
+    prngState = prngState * 1664525u + 1013904223u;
+    int32_t r1 = (int32_t)(prngState >> 16);
+    prngState = prngState * 1664525u + 1013904223u;
+    int32_t r2 = (int32_t)(prngState >> 16);
+    return (float)(r1 - r2) / 2147483648.0f * (1.0f / 32768.0f);
 }
 
+// ── Audio Device Model ──────────────────────────────────────────────────────
 struct AudioDevice {
     std::wstring id;
     std::wstring name;
-    int sampleRate = 48000;
-    int channels = 2;
 };
 
+// ── Audio Engine State ──────────────────────────────────────────────────────
 class AudioEngine {
 public:
-    std::vector<AudioDevice> devices;
-    int selectedDeviceIndex = 0;
-
-    std::atomic<ScenarioMode> currentScenario{ScenarioMode::MUSIC_HIFI};
-    std::atomic<int> chunkFrames{256};
-    std::atomic<float> bassBoostDb{5.5f};
-    std::atomic<float> trebleBoostDb{2.5f};
-    std::atomic<float> presenceBoostDb{0.0f};
-    std::atomic<float> spatialSurroundAmount{0.0f};
-    std::atomic<bool> enableSpatial3D{false};
-
     std::atomic<bool> isStreaming{false};
+    std::atomic<bool> isMicReceiving{false};
+    std::atomic<bool> isDiscoveryRunning{false};
+    std::atomic<bool> hasDiscoveredDevice{false};
     std::atomic<uint64_t> sendPacketCount{0};
+    std::atomic<uint64_t> micPacketCount{0};
+
+    std::atomic<ScenarioMode> currentScenario{ScenarioMode::GAMING_LOW_LATENCY};
+    std::atomic<float> bassBoostDb{3.0f};
+    std::atomic<float> trebleBoostDb{4.0f};
+    std::atomic<float> presenceBoostDb{3.5f};
+    std::atomic<bool> enableSpatial3D{true};
+    std::atomic<float> spatialSurroundAmount{0.85f};
+    std::atomic<int> chunkFrames{128};
+
     std::atomic<float> streamRmsL{0.0f};
     std::atomic<float> streamRmsR{0.0f};
-    std::mutex targetMutex;
-    std::string targetPhoneIp = "192.168.1.15";
-    uint32_t sessionToken = 0;
-    std::thread streamThread;
-
-    std::atomic<bool> isMicReceiving{false};
-    std::atomic<uint64_t> micPacketCount{0};
     std::atomic<float> micRmsLevel{0.0f};
-    std::thread micThread;
 
-    std::atomic<bool> isDiscoveryRunning{false};
-    std::thread discoveryThread;
-    std::mutex discoveryMutex;
-    std::string discoveredDeviceName = "";
-    std::string discoveredDeviceIp = "";
-    uint32_t discoveredToken = 0;
-    std::atomic<bool> hasDiscoveredDevice{false};
+    std::atomic<float> currentLatencyMs{2.67f};
+    std::atomic<float> minLatencyMs{2.50f};
+    std::atomic<float> maxLatencyMs{3.10f};
+    std::atomic<float> jitterMs{0.12f};
 
     std::mutex latencyMutex;
     std::deque<float> latencyHistoryMs;
-    std::atomic<float> currentLatencyMs{2.67f};
-    std::atomic<float> minLatencyMs{2.10f};
-    std::atomic<float> maxLatencyMs{3.80f};
-    std::atomic<float> jitterMs{0.12f};
 
-    // Live Oscilloscope Waveform & 7-Band Spectrum
+    std::mutex discoveryMutex;
+    std::string discoveredDeviceName;
+    std::string discoveredDeviceIp;
+    uint32_t discoveredToken = 0;
+    std::string lastNotifiedDevice;
+
+    std::vector<AudioDevice> devices;
+    int selectedDeviceIndex = -1;
+
+    std::string targetPhoneIp = "192.168.1.15";
+    uint32_t sessionToken = 0;
+    std::mutex targetMutex;
+
+    std::thread streamThread;
+    std::thread micThread;
+    std::thread discoveryThread;
+
     std::mutex waveformMutex;
     std::vector<float> waveformL;
     std::vector<float> waveformR;
@@ -416,7 +431,6 @@ public:
         currentScenario.store(mode);
         switch (mode) {
             case ScenarioMode::GAMING_LOW_LATENCY:
-                chunkFrames.store(128); // 2.67ms
                 bassBoostDb.store(3.0f);
                 trebleBoostDb.store(4.0f);
                 presenceBoostDb.store(3.5f);
@@ -425,7 +439,6 @@ public:
                 PostNotification(L"🎮 PROFILE: GAMING ULTRA 2.67ms", L"Sub-millisecond low-latency MMAP with 3D Spatial HRTF active.", Color(255, 245, 158, 11), false);
                 break;
             case ScenarioMode::MUSIC_HIFI:
-                chunkFrames.store(256); // 5.33ms
                 bassBoostDb.store(5.5f);
                 trebleBoostDb.store(2.5f);
                 presenceBoostDb.store(0.0f);
@@ -434,7 +447,6 @@ public:
                 PostNotification(L"🎵 PROFILE: HI-FI HARMAN", L"Audiophile natural sub-bass and silky treble curve active.", Color(255, 16, 185, 129), false);
                 break;
             case ScenarioMode::CINEMA_MOVIE:
-                chunkFrames.store(256);
                 bassBoostDb.store(7.0f);
                 trebleBoostDb.store(2.0f);
                 presenceBoostDb.store(2.0f);
@@ -443,7 +455,6 @@ public:
                 PostNotification(L"🎬 PROFILE: CINEMA 3D SURROUND", L"Dolby-style room acoustic matrix and vocal dialogue lift.", Color(255, 168, 85, 247), false);
                 break;
             case ScenarioMode::PURE_DIRECT:
-                chunkFrames.store(256);
                 bassBoostDb.store(0.0f);
                 trebleBoostDb.store(0.0f);
                 presenceBoostDb.store(0.0f);
@@ -478,19 +489,15 @@ public:
             bindAddr.sin_family = AF_INET;
             bindAddr.sin_port = htons(DISCOVERY_PORT);
             bindAddr.sin_addr.s_addr = INADDR_ANY;
-            if (bind(sock, (sockaddr*)&bindAddr, sizeof(bindAddr)) == SOCKET_ERROR) {
-                bindAddr.sin_port = 0;
-                bind(sock, (sockaddr*)&bindAddr, sizeof(bindAddr));
-            }
+            bind(sock, (sockaddr*)&bindAddr, sizeof(bindAddr));
 
             sockaddr_in bcastAddr{};
             bcastAddr.sin_family = AF_INET;
             bcastAddr.sin_port = htons(DISCOVERY_PORT);
             bcastAddr.sin_addr.s_addr = INADDR_BROADCAST;
 
-            char buf[256];
-            const char* scanMsg = "NWDS|NullWirePC";
-            std::string lastNotifiedDevice = "";
+            char buf[512]{};
+            const char* scanMsg = "NWDISC|WindowsSender";
 
             while (isDiscoveryRunning.load()) {
                 sendto(sock, scanMsg, (int)strlen(scanMsg), 0, (sockaddr*)&bcastAddr, sizeof(bcastAddr));
@@ -754,47 +761,44 @@ public:
             if (srcChannels < 1) srcChannels = 1;
             if (srcBytesPerFrame < 1) srcBytesPerFrame = (srcBits / 8) * srcChannels;
 
+            // DSP Filters with Continuous Slewing (Zero Mode-Switch Pops!)
             BiquadFilter bassFilter;
             BiquadFilter trebleFilter;
             BiquadFilter presenceFilter;
             BinauralSpatializer spatializer3D;
 
-            bassFilter.SetLowShelf(80.0, (double)bassBoostDb.load(), (double)TARGET_RATE, 0.7071);
-            trebleFilter.SetHighShelf(12000.0, (double)trebleBoostDb.load(), (double)TARGET_RATE, 0.7071);
-            presenceFilter.SetPeaking(2800.0, (double)presenceBoostDb.load(), (double)TARGET_RATE, 1.0);
+            // Real-Time 7-Band Spectrum Energy Detectors
+            BiquadFilter specBp[7];
+            const double specFreqs[7] = {60.0, 150.0, 400.0, 1000.0, 2500.0, 6000.0, 14000.0};
+            for (int b = 0; b < 7; b++) {
+                specBp[b].SetBandPass(specFreqs[b], 1.414, (double)TARGET_RATE);
+            }
+            double specBandAcc[7] = {0, 0, 0, 0, 0, 0, 0};
 
-            float lastBass = bassBoostDb.load();
-            float lastTreble = trebleBoostDb.load();
-            float lastPresence = presenceBoostDb.load();
+            // Slewed continuous DSP parameters
+            double slewBass = bassBoostDb.load();
+            double slewTreble = trebleBoostDb.load();
+            double slewPresence = presenceBoostDb.load();
+            double slewSpatial = enableSpatial3D.load() ? spatialSurroundAmount.load() : 0.0f;
+            double slewWetDry = (currentScenario.load() == ScenarioMode::PURE_DIRECT) ? 0.0 : 1.0;
+
+            bassFilter.SetLowShelf(80.0, slewBass, (double)TARGET_RATE, 0.7071);
+            trebleFilter.SetHighShelf(12000.0, slewTreble, (double)TARGET_RATE, 0.7071);
+            presenceFilter.SetPeaking(2800.0, slewPresence, (double)TARGET_RATE, 1.0);
+
+            double lastUpdatedBass = slewBass;
+            double lastUpdatedTreble = slewTreble;
+            double lastUpdatedPresence = slewPresence;
 
             auto lastPacketTime = std::chrono::high_resolution_clock::now();
             uint16_t sequenceNumber = 0;
             std::vector<uint8_t> packetPayload(MAX_AUDIO_PACKET);
 
             while (isStreaming.load()) {
-                float curBass = bassBoostDb.load();
-                float curTreble = trebleBoostDb.load();
-                float curPresence = presenceBoostDb.load();
-                float curSpatial = enableSpatial3D.load() ? spatialSurroundAmount.load() : 0.0f;
-                ScenarioMode mode = currentScenario.load();
-
-                if (curBass != lastBass) {
-                    bassFilter.SetLowShelf(80.0, (double)curBass, (double)TARGET_RATE, 0.7071);
-                    lastBass = curBass;
-                }
-                if (curTreble != lastTreble) {
-                    trebleFilter.SetHighShelf(12000.0, (double)curTreble, (double)TARGET_RATE, 0.7071);
-                    lastTreble = curTreble;
-                }
-                if (curPresence != lastPresence) {
-                    presenceFilter.SetPeaking(2800.0, (double)curPresence, (double)TARGET_RATE, 1.0);
-                    lastPresence = curPresence;
-                }
-
                 UINT32 packetLength = 0;
                 HRESULT hr = pCaptureClient->GetNextPacketSize(&packetLength);
                 if (FAILED(hr)) {
-                    Sleep(5);
+                    Sleep(2);
                     continue;
                 }
 
@@ -810,7 +814,34 @@ public:
                 hr = pCaptureClient->GetBuffer(&pData, &numFramesRead, &flags, NULL, NULL);
                 if (SUCCEEDED(hr)) {
                     if (numFramesRead > 0) {
+                        // Target DSP parameters
+                        double targetBass = (double)bassBoostDb.load();
+                        double targetTreble = (double)trebleBoostDb.load();
+                        double targetPresence = (double)presenceBoostDb.load();
+                        double targetSpatial = enableSpatial3D.load() ? (double)spatialSurroundAmount.load() : 0.0;
+                        double targetWetDry = (currentScenario.load() == ScenarioMode::PURE_DIRECT) ? 0.0 : 1.0;
+
                         for (UINT32 f = 0; f < numFramesRead; f++) {
+                            // Smooth exponential parameter slewing per sample (Pop-Free Guarantee!)
+                            slewBass += (targetBass - slewBass) * 0.003;
+                            slewTreble += (targetTreble - slewTreble) * 0.003;
+                            slewPresence += (targetPresence - slewPresence) * 0.003;
+                            slewSpatial += (targetSpatial - slewSpatial) * 0.003;
+                            slewWetDry += (targetWetDry - slewWetDry) * 0.003;
+
+                            if (std::abs(slewBass - lastUpdatedBass) > 0.05) {
+                                bassFilter.SetLowShelf(80.0, slewBass, (double)TARGET_RATE, 0.7071);
+                                lastUpdatedBass = slewBass;
+                            }
+                            if (std::abs(slewTreble - lastUpdatedTreble) > 0.05) {
+                                trebleFilter.SetHighShelf(12000.0, slewTreble, (double)TARGET_RATE, 0.7071);
+                                lastUpdatedTreble = slewTreble;
+                            }
+                            if (std::abs(slewPresence - lastUpdatedPresence) > 0.05) {
+                                presenceFilter.SetPeaking(2800.0, slewPresence, (double)TARGET_RATE, 1.0);
+                                lastUpdatedPresence = slewPresence;
+                            }
+
                             double l_raw = 0.0, r_raw = 0.0;
 
                             if (flags & AUDCLNT_BUFFERFLAGS_SILENT || !pData) {
@@ -840,28 +871,38 @@ public:
                                 r_raw = (srcChannels > 1) ? iSrc[1] / 2147483648.0 : l_raw;
                             }
 
-                            double l_out = l_raw;
-                            double r_out = r_raw;
-
-                            if (mode != ScenarioMode::PURE_DIRECT) {
-                                l_out = bassFilter.Process(l_out, 0);
-                                r_out = bassFilter.Process(r_out, 1);
-
-                                if (std::abs(curPresence) > 0.05) {
-                                    l_out = presenceFilter.Process(l_out, 0);
-                                    r_out = presenceFilter.Process(r_out, 1);
-                                }
-
-                                l_out = trebleFilter.Process(l_out, 0);
-                                r_out = trebleFilter.Process(r_out, 1);
-
-                                if (curSpatial > 0.01f) {
-                                    spatializer3D.ProcessStereo(l_out, r_out, curSpatial);
-                                }
-
-                                l_out = StudioMasterLimiter(l_out);
-                                r_out = StudioMasterLimiter(r_out);
+                            // True Real-Time 7-Band Energy Accumulation from Live PCM
+                            double monoIn = (l_raw + r_raw) * 0.5;
+                            for (int b = 0; b < 7; b++) {
+                                double bpOut = specBp[b].Process(monoIn, 0);
+                                specBandAcc[b] += bpOut * bpOut;
                             }
+
+                            // Smooth Equal-Power DSP Blend
+                            double l_dsp = l_raw;
+                            double r_dsp = r_raw;
+
+                            l_dsp = bassFilter.Process(l_dsp, 0);
+                            r_dsp = bassFilter.Process(r_dsp, 1);
+
+                            if (std::abs(slewPresence) > 0.02) {
+                                l_dsp = presenceFilter.Process(l_dsp, 0);
+                                r_dsp = presenceFilter.Process(r_dsp, 1);
+                            }
+
+                            l_dsp = trebleFilter.Process(l_dsp, 0);
+                            r_dsp = trebleFilter.Process(r_dsp, 1);
+
+                            if (slewSpatial > 0.005) {
+                                spatializer3D.ProcessStereo(l_dsp, r_dsp, (float)slewSpatial);
+                            }
+
+                            l_dsp = StudioMasterLimiter(l_dsp);
+                            r_dsp = StudioMasterLimiter(r_dsp);
+
+                            // Smooth crossfade between Raw Direct and DSP Wet
+                            double l_out = l_raw * (1.0 - slewWetDry) + l_dsp * slewWetDry;
+                            double r_out = r_raw * (1.0 - slewWetDry) + r_dsp * slewWetDry;
 
                             static uint32_t ditherPrng = 0x12345678;
                             float dither = GenerateTpdfDither(ditherPrng);
@@ -872,8 +913,9 @@ public:
                     }
                     pCaptureClient->ReleaseBuffer(numFramesRead);
 
-                    int targetChunk = std::clamp(chunkFrames.load(), 64, 512);
-                    int targetSamples = targetChunk * 2;
+                    // Fixed stable 128 frames (2.67ms @ 48kHz Stereo)
+                    constexpr int targetChunk = 128;
+                    constexpr int targetSamples = targetChunk * 2;
 
                     while ((int)pcmAccumulator.size() >= targetSamples) {
                         int pcmBytes = targetSamples * (int)sizeof(int16_t);
@@ -916,22 +958,15 @@ public:
                         streamRmsL.store((float)std::min(1.0, rmsL * 3.5));
                         streamRmsR.store((float)std::min(1.0, rmsR * 3.5));
 
-                        // 7-Band Spectrum Energy Simulation
-                        float b0 = (float)std::min(1.0, rmsL * 3.2 + std::abs(bassBoostDb.load()) * 0.04);
-                        float b1 = (float)std::min(1.0, (rmsL + rmsR) * 2.8);
-                        float b2 = (float)std::min(1.0, (rmsL + rmsR) * 2.5);
-                        float b3 = (float)std::min(1.0, (rmsL + rmsR) * 2.6);
-                        float b4 = (float)std::min(1.0, (rmsL + rmsR) * 2.4 + std::abs(presenceBoostDb.load()) * 0.04);
-                        float b5 = (float)std::min(1.0, (rmsL + rmsR) * 2.2 + std::abs(trebleBoostDb.load()) * 0.04);
-                        float b6 = (float)std::min(1.0, rmsR * 2.0);
-
-                        spectrumBands[0].store(b0, std::memory_order_relaxed);
-                        spectrumBands[1].store(b1, std::memory_order_relaxed);
-                        spectrumBands[2].store(b2, std::memory_order_relaxed);
-                        spectrumBands[3].store(b3, std::memory_order_relaxed);
-                        spectrumBands[4].store(b4, std::memory_order_relaxed);
-                        spectrumBands[5].store(b5, std::memory_order_relaxed);
-                        spectrumBands[6].store(b6, std::memory_order_relaxed);
+                        // Store Real-Time 7-Band Frequency Spectrum from Biquad Filter Energy
+                        for (int b = 0; b < 7; b++) {
+                            double bandRms = std::sqrt(specBandAcc[b] / targetChunk) * 4.2;
+                            specBandAcc[b] = 0.0;
+                            float curVal = spectrumBands[b].load(std::memory_order_relaxed);
+                            float targetVal = (float)std::clamp(bandRms, 0.0, 1.0);
+                            float smoothVal = curVal * 0.4f + targetVal * 0.6f;
+                            spectrumBands[b].store(smoothVal, std::memory_order_relaxed);
+                        }
 
                         pcmAccumulator.erase(pcmAccumulator.begin(), pcmAccumulator.begin() + targetSamples);
                     }
@@ -1234,7 +1269,7 @@ void DrawModernGlassCard(Graphics& g, int x, int y, int w, int h, const wchar_t*
     g.DrawPath(&penBorder, &path);
 
     if (title) {
-        Gdiplus::Font fontTitle(L"Segoe UI Variable Display", 10.0f, FontStyleBold, UnitPoint);
+        Gdiplus::Font fontTitle(L"Segoe UI", 9.5f, FontStyleBold, UnitPoint);
         SolidBrush brushText(Color(255, 226, 232, 240));
         g.DrawString(title, -1, &fontTitle, PointF((float)x + 16, (float)y + 12), &brushText);
     }
@@ -1386,12 +1421,12 @@ void DrawSpectrumAndOscilloscope(Graphics& g, int x, int y, int w, int h) {
     int plotY = y + 36;
     int plotH = h - 48;
 
-    // 1. 7-Band Frequency Spectrum Bars
+    // 1. 7-Band Frequency Spectrum Bars (Real Biquad Energy Values)
     const wchar_t* bandNames[] = {L"60Hz", L"150Hz", L"400Hz", L"1kHz", L"2.5k", L"6kHz", L"14k"};
     int barW = (specW - 14) / 7;
 
     for (int i = 0; i < 7; i++) {
-        float val = g_Engine.spectrumBands[i].load();
+        float val = g_Engine.spectrumBands[i].load(std::memory_order_relaxed);
         int bx = specX + i * (barW + 2);
         int barH = (int)(val * (plotH - 18));
         int by = plotY + plotH - 16 - barH;
@@ -1399,30 +1434,28 @@ void DrawSpectrumAndOscilloscope(Graphics& g, int x, int y, int w, int h) {
         SolidBrush brushTrack(Color(255, 13, 17, 24));
         g.FillRectangle(&brushTrack, bx, plotY, barW, plotH - 16);
 
-        if (barH > 0) {
-            LinearGradientBrush barGrad(
-                PointF((float)bx, (float)plotY + plotH - 16),
+        if (barH > 2) {
+            LinearGradientBrush grad(
                 PointF((float)bx, (float)by),
+                PointF((float)bx, (float)plotY + plotH - 16),
                 Color(255, 0, 210, 255),
                 Color(255, 168, 85, 247)
             );
-            g.FillRectangle(&barGrad, bx, by, barW, barH);
-
-            SolidBrush brushCap(Color(255, 255, 255, 255));
-            g.FillRectangle(&brushCap, bx, by - 2, barW, 2);
+            g.FillRectangle(&grad, bx, by, barW, barH);
         }
 
-        Gdiplus::Font fontLbl(L"Segoe UI", 7.0f, FontStyleRegular, UnitPoint);
+        Gdiplus::Font fontBand(L"Consolas", 7.0f, FontStyleRegular, UnitPoint);
         SolidBrush brushLbl(Color(255, 100, 116, 139));
-        g.DrawString(bandNames[i], -1, &fontLbl, PointF((float)bx - 2, (float)plotY + plotH - 14), &brushLbl);
+        StringFormat sf;
+        sf.SetAlignment(StringAlignmentCenter);
+        g.DrawString(bandNames[i], -1, &fontBand, RectF((float)bx - 2, (float)plotY + plotH - 14, (float)barW + 4, 14.0f), &sf, &brushLbl);
     }
 
-    // 2. Stereo Realtime Oscilloscope
+    // 2. Dual-Channel Stereo Oscilloscope
     SolidBrush brushOscBg(Color(255, 13, 17, 24));
     g.FillRectangle(&brushOscBg, oscX, plotY, oscW, plotH - 16);
 
-    Pen penGrid(Color(255, 24, 32, 44), 1.0f);
-    penGrid.SetDashStyle(DashStyleDot);
+    Pen penGrid(Color(255, 23, 31, 45), 1.0f);
     g.DrawLine(&penGrid, oscX, plotY + (plotH - 16) / 2, oscX + oscW, plotY + (plotH - 16) / 2);
 
     std::vector<float> waveL, waveR;
@@ -1433,65 +1466,53 @@ void DrawSpectrumAndOscilloscope(Graphics& g, int x, int y, int w, int h) {
     }
 
     if (waveL.size() > 1) {
-        float midY = (float)plotY + (float)(plotH - 16) / 2.0f;
-        float amp = (float)(plotH - 24) / 2.0f;
+        Pen penL(Color(255, 0, 210, 255), 1.6f);
+        penL.SetLineJoin(LineJoinRound);
+        Pen penR(Color(255, 168, 85, 247), 1.2f);
+        penR.SetLineJoin(LineJoinRound);
 
-        Pen penL(Color(220, 0, 210, 255), 1.8f);
-        Pen penR(Color(200, 168, 85, 247), 1.5f);
+        float midY = (float)plotY + (float)(plotH - 16) / 2.0f;
+        float ampScale = (float)(plotH - 24) / 2.0f;
 
         for (size_t i = 1; i < waveL.size(); i++) {
-            float x1 = (float)oscX + ((float)(i - 1) / (float)(waveL.size() - 1)) * (float)oscW;
-            float x2 = (float)oscX + ((float)i / (float)(waveL.size() - 1)) * (float)oscW;
+            float x0 = (float)oscX + ((float)(i - 1) / (float)(waveL.size() - 1)) * (float)oscW;
+            float x1 = (float)oscX + ((float)i / (float)(waveL.size() - 1)) * (float)oscW;
 
-            float y1L = midY - waveL[i - 1] * amp;
-            float y2L = midY - waveL[i] * amp;
-            g.DrawLine(&penL, x1, y1L, x2, y2L);
+            float y0_L = midY - waveL[i - 1] * ampScale;
+            float y1_L = midY - waveL[i] * ampScale;
+            g.DrawLine(&penL, x0, y0_L, x1, y1_L);
 
-            float y1R = midY - waveR[i - 1] * amp;
-            float y2R = midY - waveR[i] * amp;
-            g.DrawLine(&penR, x1, y1R, x2, y2R);
+            float y0_R = midY - waveR[i - 1] * ampScale;
+            float y1_R = midY - waveR[i] * ampScale;
+            g.DrawLine(&penR, x0, y0_R, x1, y1_R);
         }
     }
-
-    Gdiplus::Font fontOscTag(L"Consolas", 7.5f, FontStyleBold, UnitPoint);
-    SolidBrush brushTagL(Color(255, 0, 210, 255));
-    SolidBrush brushTagR(Color(255, 168, 85, 247));
-    g.DrawString(L"CH-L", -1, &fontOscTag, PointF((float)oscX + 6, (float)plotY + 4), &brushTagL);
-    g.DrawString(L"CH-R", -1, &fontOscTag, PointF((float)oscX + 40, (float)plotY + 4), &brushTagR);
 }
 
 void DrawFuturisticLatencyChart(Graphics& g, int x, int y, int w, int h) {
     g.SetSmoothingMode(SmoothingModeAntiAlias);
 
-    DrawModernGlassCard(g, x, y, w, h, L"LIVE NETWORK LATENCY & PACKET INTEGRITY HUD", L"48kHz LOSSLESS · 0.0% LOSS", Color(255, 16, 185, 129));
-
-    float curL = g_Engine.currentLatencyMs.load();
-    float minL = g_Engine.minLatencyMs.load();
-    float maxL = g_Engine.maxLatencyMs.load();
+    wchar_t telemetryHdr[128];
+    float curLat = g_Engine.currentLatencyMs.load();
     float jit = g_Engine.jitterMs.load();
+    uint64_t totalPackets = g_Engine.sendPacketCount.load();
 
-    wchar_t statsBuf[160];
-    swprintf_s(statsBuf, L"Live: %.2f ms   ·   Min: %.2f ms   ·   Max: %.2f ms   ·   Jitter: ±%.2f ms   ·   Buffer: Ultra-Low DMA", curL, minL, maxL, jit);
-    Gdiplus::Font fontMono(L"Consolas", 8.5f, FontStyleBold, UnitPoint);
-    SolidBrush brushGreen(Color(255, 16, 185, 129));
-    g.DrawString(statsBuf, -1, &fontMono, PointF((float)x + 16, (float)y + 34), &brushGreen);
+    swprintf_s(telemetryHdr, L"LATENCY: %.2f ms   ·   JITTER: ±%.2f ms   ·   PACKETS: %llu", curLat, jit, totalPackets);
+
+    DrawModernGlassCard(g, x, y, w, h, L"HARDWARE DMA LATENCY & NETWORK JITTER (REAL-TIME)", telemetryHdr, Color(255, 16, 185, 129));
 
     int gx = x + 16;
-    int gy = y + 54;
+    int gy = y + 36;
     int gw = w - 32;
-    int gh = h - 68;
+    int gh = h - 48;
 
-    Pen penGrid(Color(255, 24, 32, 44), 1.0f);
-    penGrid.SetDashStyle(DashStyleDot);
-    for (int i = 1; i <= 3; i++) {
+    SolidBrush brushGridBg(Color(255, 13, 17, 24));
+    g.FillRectangle(&brushGridBg, gx, gy, gw, gh);
+
+    Pen penGrid(Color(255, 23, 31, 45), 1.0f);
+    for (int i = 1; i < 4; i++) {
         int py = gy + (gh * i) / 4;
         g.DrawLine(&penGrid, gx, py, gx + gw, py);
-
-        wchar_t gridLabel[16];
-        swprintf_s(gridLabel, L"%.1f ms", 10.0f - i * 2.5f);
-        Gdiplus::Font fontGrid(L"Segoe UI", 7.5f, FontStyleRegular, UnitPoint);
-        SolidBrush brushGridText(Color(255, 100, 116, 139));
-        g.DrawString(gridLabel, -1, &fontGrid, PointF((float)gx + 4, (float)py - 12), &brushGridText);
     }
 
     std::vector<float> hist;
@@ -1720,10 +1741,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             g_hbrCard = CreateSolidBrush(COLOR_CARD_BG);
             g_hbrInput = CreateSolidBrush(COLOR_INPUT_BG);
 
-            g_hFontTitle = CreateFontW(22, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI Variable Display");
-            g_hFontSub = CreateFontW(12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI Variable Text");
-            g_hFontBold = CreateFontW(13, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI Variable Text");
-            g_hFontNormal = CreateFontW(12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI Variable Text");
+            g_hFontTitle = CreateFontW(22, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+            g_hFontSub = CreateFontW(12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+            g_hFontBold = CreateFontW(13, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
+            g_hFontNormal = CreateFontW(12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Segoe UI");
             g_hFontMono = CreateFontW(13, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, L"Consolas");
 
             InitCommonControls();
@@ -1773,13 +1794,39 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             break;
         }
 
+        case WM_ENTERSIZEMOVE:
+            g_isMovingOrSizing = true;
+            KillTimer(hWnd, 1);
+            break;
+
+        case WM_EXITSIZEMOVE: {
+            g_isMovingOrSizing = false;
+            RECT rc;
+            GetClientRect(hWnd, &rc);
+            int w = rc.right - rc.left;
+            int h = rc.bottom - rc.top;
+            UpdateUiLayout(w, h);
+            SetTimer(hWnd, 1, 33, NULL);
+            InvalidateRect(hWnd, NULL, FALSE);
+            break;
+        }
+
+        case WM_GETMINMAXINFO: {
+            LPMINMAXINFO lpMMI = (LPMINMAXINFO)lParam;
+            lpMMI->ptMinTrackSize.x = 720;
+            lpMMI->ptMinTrackSize.y = 860;
+            break;
+        }
+
         case WM_SIZE: {
             if (wParam == SIZE_MINIMIZED) break;
             int w = LOWORD(lParam);
             int h = HIWORD(lParam);
             if (w >= 200 && h >= 200) {
                 UpdateUiLayout(w, h);
-                InvalidateRect(hWnd, NULL, FALSE);
+                if (!g_isMovingOrSizing) {
+                    InvalidateRect(hWnd, NULL, FALSE);
+                }
             }
             break;
         }
@@ -1924,6 +1971,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         }
 
         case WM_TIMER: {
+            if (g_isMovingOrSizing) break;
             RECT rc;
             GetClientRect(hWnd, &rc);
             RECT rcVisuals = {24, 430, rc.right - 24, rc.bottom - 16};
@@ -1957,6 +2005,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
             Graphics graphics(hdcMem);
             graphics.SetSmoothingMode(SmoothingModeAntiAlias);
+            graphics.SetCompositingQuality(CompositingQualityHighSpeed);
 
             // 1. Header
             DrawNullWireLogo(graphics, 24.0f, 16.0f, 44.0f);
@@ -2084,7 +2133,35 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     return 0;
 }
 
+void EnableHighDpiSupport() {
+    HMODULE hUser32 = GetModuleHandleW(L"user32.dll");
+    if (hUser32) {
+        typedef BOOL (WINAPI *SetProcessDpiAwarenessContextProc)(void*);
+        SetProcessDpiAwarenessContextProc setDpiContext = 
+            (SetProcessDpiAwarenessContextProc)GetProcAddress(hUser32, "SetProcessDpiAwarenessContext");
+        if (setDpiContext) {
+            setDpiContext((void*)-4); // DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+            return;
+        }
+    }
+    HMODULE hShcore = LoadLibraryW(L"shcore.dll");
+    if (hShcore) {
+        typedef HRESULT (WINAPI *SetProcessDpiAwarenessProc)(int);
+        SetProcessDpiAwarenessProc setDpiAwareness = 
+            (SetProcessDpiAwarenessProc)GetProcAddress(hShcore, "SetProcessDpiAwareness");
+        if (setDpiAwareness) {
+            setDpiAwareness(2); // PROCESS_PER_MONITOR_DPI_AWARE
+            FreeLibrary(hShcore);
+            return;
+        }
+        FreeLibrary(hShcore);
+    }
+    SetProcessDPIAware();
+}
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+    EnableHighDpiSupport();
+
     if (!EnsureWinsock()) {
         MessageBoxW(NULL, L"Failed to initialize network sockets.", L"NullWire Pro", MB_ICONERROR);
         return 1;
@@ -2095,22 +2172,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     WNDCLASSEXW wc{};
     wc.cbSize = sizeof(WNDCLASSEXW);
-    wc.style = CS_HREDRAW | CS_VREDRAW;
+    wc.style = CS_DBLCLKS; // Avoid CS_HREDRAW | CS_VREDRAW for smooth window dragging
     wc.lpfnWndProc = WndProc;
     wc.hInstance = hInstance;
     wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(1));
     wc.hIconSm = (HICON)LoadImage(hInstance, MAKEINTRESOURCE(1), IMAGE_ICON, 16, 16, 0);
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-    wc.hbrBackground = CreateSolidBrush(COLOR_BG);
+    wc.hbrBackground = NULL; // We paint our own double-buffered background
     wc.lpszClassName = L"NullWireProClass";
 
     RegisterClassExW(&wc);
 
     HWND hWnd = CreateWindowExW(
-        0,
+        WS_EX_APPWINDOW,
         L"NullWireProClass",
         L"NullWire Pro  ·  Studio Wireless Audio Dashboard",
-        WS_OVERLAPPEDWINDOW,
+        WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
         CW_USEDEFAULT, CW_USEDEFAULT,
         740, 920,
         NULL, NULL, hInstance, NULL

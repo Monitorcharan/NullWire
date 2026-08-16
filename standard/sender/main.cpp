@@ -787,6 +787,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             break;
         }
 
+        case WM_ENTERSIZEMOVE:
+            KillTimer(hWnd, 1);
+            break;
+
+        case WM_EXITSIZEMOVE:
+            SetTimer(hWnd, 1, 33, NULL);
+            InvalidateRect(hWnd, NULL, FALSE);
+            break;
+
         case WM_ERASEBKGND:
             return 1;
 
@@ -829,6 +838,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
             Graphics graphics(hdcMem);
             graphics.SetSmoothingMode(SmoothingModeAntiAlias);
+            graphics.SetCompositingQuality(CompositingQualityHighSpeed);
 
             // Header
             DrawNullWireLogo(graphics, 24.0f, 16.0f, 40.0f);
@@ -903,7 +913,35 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     return 0;
 }
 
+void EnableHighDpiSupport() {
+    HMODULE hUser32 = GetModuleHandleW(L"user32.dll");
+    if (hUser32) {
+        typedef BOOL (WINAPI *SetProcessDpiAwarenessContextProc)(void*);
+        SetProcessDpiAwarenessContextProc setDpiContext = 
+            (SetProcessDpiAwarenessContextProc)GetProcAddress(hUser32, "SetProcessDpiAwarenessContext");
+        if (setDpiContext) {
+            setDpiContext((void*)-4);
+            return;
+        }
+    }
+    HMODULE hShcore = LoadLibraryW(L"shcore.dll");
+    if (hShcore) {
+        typedef HRESULT (WINAPI *SetProcessDpiAwarenessProc)(int);
+        SetProcessDpiAwarenessProc setDpiAwareness = 
+            (SetProcessDpiAwarenessProc)GetProcAddress(hShcore, "SetProcessDpiAwareness");
+        if (setDpiAwareness) {
+            setDpiAwareness(2);
+            FreeLibrary(hShcore);
+            return;
+        }
+        FreeLibrary(hShcore);
+    }
+    SetProcessDPIAware();
+}
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+    EnableHighDpiSupport();
+
     if (!EnsureWinsock()) {
         MessageBoxW(NULL, L"Failed to initialize network sockets.", L"NullWire", MB_ICONERROR);
         return 1;
@@ -914,22 +952,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     WNDCLASSEXW wc{};
     wc.cbSize = sizeof(WNDCLASSEXW);
-    wc.style = CS_HREDRAW | CS_VREDRAW;
+    wc.style = CS_DBLCLKS;
     wc.lpfnWndProc = WndProc;
     wc.hInstance = hInstance;
     wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(1));
     wc.hIconSm = (HICON)LoadImage(hInstance, MAKEINTRESOURCE(1), IMAGE_ICON, 16, 16, 0);
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-    wc.hbrBackground = CreateSolidBrush(COLOR_BG);
+    wc.hbrBackground = NULL;
     wc.lpszClassName = L"NullWireStandardClass";
 
     RegisterClassExW(&wc);
 
     HWND hWnd = CreateWindowExW(
-        0,
+        WS_EX_APPWINDOW,
         L"NullWireStandardClass",
         L"NullWire  ·  Standard Edition",
-        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
+        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
         CW_USEDEFAULT, CW_USEDEFAULT,
         540, 420,
         NULL, NULL, hInstance, NULL

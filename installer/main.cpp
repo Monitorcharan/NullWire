@@ -611,14 +611,41 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     return 0;
 }
 
+void EnableHighDpiSupport() {
+    HMODULE hUser32 = GetModuleHandleW(L"user32.dll");
+    if (hUser32) {
+        typedef BOOL (WINAPI *SetProcessDpiAwarenessContextProc)(void*);
+        SetProcessDpiAwarenessContextProc setDpiContext = 
+            (SetProcessDpiAwarenessContextProc)GetProcAddress(hUser32, "SetProcessDpiAwarenessContext");
+        if (setDpiContext) {
+            setDpiContext((void*)-4);
+            return;
+        }
+    }
+    HMODULE hShcore = LoadLibraryW(L"shcore.dll");
+    if (hShcore) {
+        typedef HRESULT (WINAPI *SetProcessDpiAwarenessProc)(int);
+        SetProcessDpiAwarenessProc setDpiAwareness = 
+            (SetProcessDpiAwarenessProc)GetProcAddress(hShcore, "SetProcessDpiAwareness");
+        if (setDpiAwareness) {
+            setDpiAwareness(2);
+            FreeLibrary(hShcore);
+            return;
+        }
+        FreeLibrary(hShcore);
+    }
+    SetProcessDPIAware();
+}
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+    EnableHighDpiSupport();
     CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
     GdiplusStartupInput gdiplusStartupInput;
     GdiplusStartup(&g_gdiplusToken, &gdiplusStartupInput, NULL);
 
     WNDCLASSEXW wc{};
     wc.cbSize = sizeof(WNDCLASSEXW);
-    wc.style = CS_HREDRAW | CS_VREDRAW;
+    wc.style = CS_DBLCLKS;
     wc.lpfnWndProc = WndProc;
     wc.hInstance = hInstance;
     wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(1));
@@ -630,10 +657,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     RegisterClassExW(&wc);
 
     HWND hWnd = CreateWindowExW(
-        0,
+        WS_EX_APPWINDOW,
         L"NullWireModernWizardClass",
         L"Setup - NullWire Pro",
-        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
+        WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_CLIPCHILDREN | WS_CLIPSIBLINGS,
         CW_USEDEFAULT, CW_USEDEFAULT,
         550, 395,
         NULL, NULL, hInstance, NULL
