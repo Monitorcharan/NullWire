@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NullWire Interactive Demo — Experience Zero-Lag Audio</title>
+<meta name="description" content="Interactive demo of NullWire: Hear and test sub-3ms ultra-low latency wireless audio directly in your browser.">
+<link rel="icon" href="favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-main: #090d14;
+    --bg-card: rgba(18, 26, 43, 0.75);
+    --border-color: rgba(255, 255, 255, 0.08);
+    --accent-cyan: #38bdf8;
+    --accent-purple: #818cf8;
+    --accent-green: #34d399;
+    --accent-red: #f43f5e;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.18) 0%, transparent 60%),
+                radial-gradient(circle at 100% 100%, rgba(56, 189, 248, 0.12) 0%, transparent 50%),
+                var(--bg-main);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    color: var(--text-main);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 16px 60px;
+    overflow-x: hidden;
+  }
+
+  .ad-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 999px;
+    color: var(--accent-cyan);
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+    animation: pulseGlow 2.5s infinite;
+  }
+  .pulse-dot {
+    width: 8px; height: 8px; background: var(--accent-cyan); border-radius: 50%;
+    box-shadow: 0 0 10px var(--accent-cyan);
+  }
+  @keyframes pulseGlow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  .ad-title {
+    font-size: clamp(28px, 5vw, 48px);
+    font-weight: 800;
+    text-align: center;
+    line-height: 1.15;
+    letter-spacing: -1px;
+    margin-bottom: 12px;
+    max-width: 800px;
+  }
+  .ad-title span {
+    background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .ad-subtitle {
+    color: var(--text-muted);
+    font-size: clamp(15px, 2.5vw, 18px);
+    text-align: center;
+    max-width: 620px;
+    margin-bottom: 36px;
+    line-height: 1.5;
+  }
+
+  /* Interactive Stage Container */
+  .interactive-deck {
+    width: 100%;
+    max-width: 960px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 24px;
+    backdrop-filter: blur(20px);
+    padding: clamp(20px, 4vw, 36px);
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  /* Module 1: Live Interactive Latency Comparator */
+  .demo-section-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .demo-section-title h3 {
+    font-size: 18px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pill-mode {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-muted);
+  }
+
+  .comparison-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 680px) {
+    .comparison-grid { grid-template-columns: 1fr; }
+  }
+
+  .mode-card {
+    background: rgba(11, 17, 28, 0.85);
+    border: 2px solid var(--border-color);
+    border-radius: 18px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  .mode-card:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+  }
+  .mode-card.active-bt {
+    border-color: var(--accent-red);
+    box-shadow: 0 0 25px rgba(244, 63, 94, 0.2);
+  }
+  .mode-card.active-nw {
+    border-color: var(--accent-green);
+    box-shadow: 0 0 25px rgba(52, 211, 153, 0.2);
+  }
+
+  .mode-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .mode-name {
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .mode-latency {
+    font-family: 'DM Mono', monospace;
+    font-size: 20px;
+    font-weight: 800;
+  }
+  .latency-bad { color: var(--accent-red); }
+  .latency-good { color: var(--accent-green); }
+
+  .click-trigger-btn {
+    width: 100%;
+    padding: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text-main);
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.2s;
+  }
+  .click-trigger-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .btn-gunshot {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(129, 140, 248, 0.2));
+    border-color: rgba(56, 189, 248, 0.4);
+  }
+
+  /* Audio Waveform Canvas Display */
+  .canvas-wrap {
+    height: 90px;
+    background: #06090e;
+    border-radius: 14px;
+    border: 1px solid var(--border-color);
+    margin-top: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .sync-indicator {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+  .sync-bad { background: rgba(244, 63, 94, 0.2); color: #fb7185; }
+  .sync-good { background: rgba(52, 211, 153, 0.2); color: #6ee7b7; }
+
+  /* Module 2: Interactive Acoustic Studio DSP Sliders */
+  .dsp-console {
+    background: rgba(11, 17, 28, 0.85);
+    border: 1px solid var(--border-color);
+    border-radius: 18px;
+    padding: 24px;
+  }
+  .dsp-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 680px) {
+    .dsp-grid { grid-template-columns: 1fr; }
+  }
+
+  .slider-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .slider-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  .slider-val {
+    color: var(--accent-cyan);
+    font-family: 'DM Mono', monospace;
+    font-weight: 700;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    background: #1e293b;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent-cyan);
+    cursor: pointer;
+    box-shadow: 0 0 12px var(--accent-cyan);
+    transition: transform 0.15s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+  }
+
+  /* Preset Pills */
+  .preset-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+  }
+  .preset-btn {
+    flex: 1;
+    min-width: 120px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .preset-btn.active {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: var(--accent-cyan);
+    color: var(--text-main);
+  }
+
+  /* CTA Banner */
+  .cta-banner {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(129, 140, 248, 0.15));
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 18px;
+    padding: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .cta-text h4 {
+    font-size: 20px;
+    font-weight: 800;
+    margin-bottom: 4px;
+  }
+  .cta-text p {
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+  .cta-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #00d2ff, #6366f1);
+    color: #ffffff;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 14px;
+    text-decoration: none;
+    box-shadow: 0 4px 20px rgba(0, 210, 255, 0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 210, 255, 0.4);
+  }
+  .btn-secondary {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-main);
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 14px;
+    text-decoration: none;
+    border: 1px solid var(--border-color);
+    transition: background 0.2s;
+  }
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+</style>
+</head>
+<body>
+
+  <!-- Header Badge -->
+  <div class="ad-badge">
+    <span class="pulse-dot"></span> Interactive Live Audio Demo
+  </div>
+
+  <h1 class="ad-title">Experience <span>Zero-Delay Wireless Sound</span> Right Now</h1>
+  <p class="ad-subtitle">Test and compare Bluetooth lag versus NullWire's instantaneous 2.67ms wireless audio transmission directly in your browser.</p>
+
+  <!-- Interactive Stage Deck -->
+  <div class="interactive-deck">
+
+    <!-- Section 1: Real-Time Latency Test -->
+    <div>
+      <div class="demo-section-title">
+        <h3>⚡ Real-Time Latency Simulator</h3>
+        <span class="pill-mode">Click to trigger instant sound reaction</span>
+      </div>
+
+      <div class="comparison-grid">
+        <!-- Bluetooth Card -->
+        <div class="mode-card" id="card-bt" onclick="triggerSound('bt')">
+          <div class="mode-header">
+            <span class="mode-name">Standard Bluetooth</span>
+            <span class="mode-latency latency-bad">~220 ms</span>
+          </div>
+          <button class="click-trigger-btn" type="button">
+            🔊 Test Bluetooth Sound
+          </button>
+          <div class="canvas-wrap">
+            <canvas id="canvas-bt"></canvas>
+            <span class="sync-indicator sync-bad" id="status-bt">Noticeable Audio Lag</span>
+          </div>
+        </div>
+
+        <!-- NullWire Card -->
+        <div class="mode-card active-nw" id="card-nw" onclick="triggerSound('nw')">
+          <div class="mode-header">
+            <span class="mode-name">NullWire Wi-Fi</span>
+            <span class="mode-latency latency-good">2.67 ms</span>
+          </div>
+          <button class="click-trigger-btn btn-gunshot" type="button">
+            ⚡ Test NullWire Zero-Lag
+          </button>
+          <div class="canvas-wrap">
+            <canvas id="canvas-nw"></canvas>
+            <span class="sync-indicator sync-good" id="status-nw">Instant Sync (0.0ms)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: Interactive Sound Equalizer -->
+    <div class="dsp-console">
+      <div class="demo-section-title">
+        <h3>🎛️ Live Acoustic Equalizer (Try the Sliders)</h3>
+        <span class="pill-mode">Web Audio DSP Active</span>
+      </div>
+
+      <div class="dsp-grid">
+        <div class="slider-group">
+          <div class="slider-header">
+            <span>Natural Sub-Bass Boost</span>
+            <span class="slider-val" id="bass-val">+6.0 dB</span>
+          </div>
+          <input type="range" id="bass-slider" min="0" max="12" step="0.5" value="6" oninput="updateBass(this.value)">
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <span>Studio Clarity & Air</span>
+            <span class="slider-val" id="treble-val">+4.0 dB</span>
+          </div>
+          <input type="range" id="treble-slider" min="0" max="10" step="0.5" value="4" oninput="updateTreble(this.value)">
+        </div>
+      </div>
+
+      <!-- Presets -->
+      <div class="preset-row">
+        <button class="preset-btn active" onclick="applyPreset(0, this)">🎮 Gaming 2.67ms</button>
+        <button class="preset-btn" onclick="applyPreset(1, this)">🎵 Hi-Fi Harman</button>
+        <button class="preset-btn" onclick="applyPreset(2, this)">🎬 Cinema 3D</button>
+        <button class="preset-btn" onclick="applyPreset(3, this)">🎯 Bit-Perfect</button>
+      </div>
+    </div>
+
+    <!-- CTA Banner -->
+    <div class="cta-banner">
+      <div class="cta-text">
+        <h4>Turn your phone into wireless PC headphones today!</h4>
+        <p>100% Free • Zero Ads • Sub-3ms Latency • Windows & Android</p>
+      </div>
+      <div class="cta-actions">
+        <a href="downloads/NullWire_Setup.exe" class="btn-primary">
+          ⬇️ Download Free
+        </a>
+        <a href="https://github.com/Monitorcharan/NullWire" target="_blank" class="btn-secondary">
+          ⭐ Star on GitHub
+        </a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Web Audio Synthesis Script -->
+  <script>
+    let audioCtx = null;
+    let bassGain = 6;
+    let trebleGain = 4;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function triggerSound(mode) {
+      initAudio();
+      const delay = (mode === 'bt') ? 0.22 : 0.003; // 220ms vs 2.67ms
+
+      // Highlight card
+      document.getElementById('card-bt').classList.toggle('active-bt', mode === 'bt');
+      document.getElementById('card-nw').classList.toggle('active-nw', mode === 'nw');
+
+      const canvas = document.getElementById(mode === 'bt' ? 'canvas-bt' : 'canvas-nw');
+      drawPulse(canvas, mode === 'bt' ? '#f43f5e' : '#34d399', delay);
+
+      // Play synthesized gunshot / impact sound
+      setTimeout(() => {
+        playSynthImpact();
+      }, delay * 1000);
+    }
+
+    function playSynthImpact() {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const biquad = audioCtx.createBiquadFilter();
+
+      // Bass Boost filter
+      biquad.type = 'lowshelf';
+      biquad.frequency.setValueAtTime(100, audioCtx.currentTime);
+      biquad.gain.setValueAtTime(bassGain, audioCtx.currentTime);
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.18);
+
+      gain.gain.setValueAtTime(0.7, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+
+      osc.connect(biquad);
+      biquad.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.26);
+    }
+
+    function updateBass(val) {
+      bassGain = parseFloat(val);
+      document.getElementById('bass-val').innerText = '+' + bassGain.toFixed(1) + ' dB';
+      initAudio();
+      playSynthImpact();
+    }
+
+    function updateTreble(val) {
+      trebleGain = parseFloat(val);
+      document.getElementById('treble-val').innerText = '+' + trebleGain.toFixed(1) + ' dB';
+      initAudio();
+      playSynthImpact();
+    }
+
+    function applyPreset(idx, btn) {
+      document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (idx === 0) { updateBass(4.0); updateTreble(8.0); }
+      if (idx === 1) { updateBass(8.0); updateTreble(6.0); }
+      if (idx === 2) { updateBass(10.0); updateTreble(5.0); }
+      if (idx === 3) { updateBass(0.0); updateTreble(0.0); }
+      document.getElementById('bass-slider').value = bassGain;
+      document.getElementById('treble-slider').value = trebleGain;
+    }
+
+    function drawPulse(canvas, color, delay) {
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      const w = canvas.width;
+      const h = canvas.height;
+
+      let start = performance.now();
+      function anim(now) {
+        let elapsed = (now - start) / 1000;
+        ctx.clearRect(0, 0, w, h);
+
+        // Center line
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.beginPath();
+        ctx.moveTo(0, h / 2);
+        ctx.lineTo(w, h / 2);
+        ctx.stroke();
+
+        // Waveform burst
+        if (elapsed > delay) {
+          let progress = (elapsed - delay) / 0.35;
+          if (progress < 1) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            for (let x = 0; x < w; x += 4) {
+              let amp = Math.sin((x / w) * Math.PI) * (1 - progress) * (h * 0.45);
+              let y = h / 2 + Math.sin(x * 0.15 + elapsed * 20) * amp;
+              if (x === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            requestAnimationFrame(anim);
+            return;
+          }
+        } else {
+          // Waiting delay line
+          ctx.fillStyle = color;
+          ctx.fillRect(0, h / 2 - 2, (elapsed / delay) * w * 0.5, 4);
+          requestAnimationFrame(anim);
+          return;
+        }
+      }
+      requestAnimationFrame(anim);
+    }
+
+    // Init canvases on load
+    window.addEventListener('load', () => {
+      ['canvas-bt', 'canvas-nw'].forEach(id => {
+        const c = document.getElementById(id);
+        c.width = c.offsetWidth;
+        c.height = c.offsetHeight;
+        const ctx = c.getContext('2d');
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.beginPath();
+        ctx.moveTo(0, c.height / 2);
+        ctx.lineTo(c.width, c.height / 2);
+        ctx.stroke();
+      });
+    });
+  </script>
+</body>
+</html>
