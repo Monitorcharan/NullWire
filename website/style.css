@@ -195,7 +195,7 @@ svg {
   font-size: clamp(2.3rem, 4.1vw, 3.4rem);
   font-weight: 800;
   line-height: 1.15;
-  letter-spacing: -0.015em; /* Relaxed tracking so 'r' and 'n' don't collide */
+  letter-spacing: -0.015em;
   color: var(--ink);
   margin-bottom: 18px;
 }
@@ -631,48 +631,81 @@ svg {
   color: var(--muted);
 }
 
-/* 3-Step Setup Grid */
-.steps-grid {
+/* ==========================================================================
+   HOW TO USE & AUDIO ROUTING GRID
+   ========================================================================== */
+.setup-guide-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 24px;
 }
 
-.step-card {
-  background: #fff;
+.setup-guide-card {
+  background: #ffffff;
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 32px 24px;
+  padding: 28px 24px;
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
+  position: relative;
+  transition: transform 0.18s ease, border-color 0.18s ease;
 }
 
-.step-num {
-  width: 32px;
-  height: 32px;
+.setup-guide-card:hover {
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+}
+
+.guide-badge-num {
+  display: inline-block;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--blue-pale);
+  color: var(--blue);
+  padding: 3px 8px;
+  border-radius: 4px;
+  width: fit-content;
+  margin-bottom: 12px;
+}
+
+.guide-card-icon {
+  width: 40px;
+  height: 40px;
   background: var(--blue-pale);
   color: var(--blue);
   border-radius: 8px;
-  display: grid;
-  place-items: center;
-  font-family: 'DM Mono', monospace;
-  font-size: 0.9rem;
-  font-weight: 700;
-  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
 }
 
-.step-card h3 {
-  font-size: 1.1rem;
+.setup-guide-card h3 {
+  font-size: 1.15rem;
   font-weight: 700;
-  letter-spacing: -0.01em;
   margin-bottom: 8px;
+  color: var(--ink);
+  letter-spacing: -0.01em;
 }
 
-.step-card p {
-  font-size: 0.88rem;
+.setup-guide-card p {
+  font-size: 0.9rem;
   color: var(--muted);
   line-height: 1.55;
+  margin-bottom: 16px;
+}
+
+.guide-subtip {
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  color: var(--ink-secondary);
+  line-height: 1.5;
+  margin-top: auto;
 }
 
 /* Features Grid */
@@ -1338,15 +1371,14 @@ svg {
     grid-template-columns: 1fr;
     gap: 44px;
   }
+  .setup-guide-grid {
+    grid-template-columns: 1fr;
+  }
   .features-grid, .trust-cards-row, .simulation-grid, .android-steps-grid {
     grid-template-columns: 1fr;
   }
   .editions-grid {
     grid-template-columns: 1fr;
-  }
-  .steps-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
   }
   .cta-box {
     flex-direction: column;
