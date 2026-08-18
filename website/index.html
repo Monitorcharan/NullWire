@@ -10,27 +10,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2.7.0" />
-  <style>
-    /* Critical Inline Fallbacks for Robust Desktop Rendering */
-    .safety-tab-menu { display: flex; justify-content: center; gap: 8px; margin-bottom: 32px; flex-wrap: wrap; }
-    .safety-tab-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.88rem; font-weight: 600; color: #64748b; cursor: pointer; }
-    .safety-tab-btn.active { background: #0f172a; color: #ffffff; border-color: #0f172a; }
-    .safety-tab-panel { display: none; }
-    .safety-tab-panel.active { display: block; }
-    .panel-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 32px 30px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.08); }
-    .trust-cards-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-    .trust-box { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px 20px; display: flex; gap: 16px; align-items: flex-start; }
-    .trust-badge-icon { width: 40px; height: 40px; background: #ecfdf5; color: #10b981; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .simulation-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 24px; align-items: start; }
-    .smartscreen-sim-card { background: #005a9e; border-radius: 10px; padding: 22px 20px; color: #ffffff; }
-    .android-steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-    .android-step-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px 16px; }
-    .step-circle { width: 28px; height: 28px; background: #2563eb; color: #ffffff; border-radius: 50%; display: grid; place-items: center; font-weight: 700; margin-bottom: 12px; font-size: 0.82rem; }
-    @media (max-width: 960px) {
-      .trust-cards-row, .simulation-grid, .android-steps-grid { grid-template-columns: 1fr; }
-    }
-  </style>
+  <link rel="stylesheet" href="style.css?v=2.8.0" />
+  <script>
+    (function() {
+      const savedTheme = localStorage.getItem('nullwire-theme');
+      if (savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>

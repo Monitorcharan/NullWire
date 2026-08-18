@@ -24,9 +24,9 @@
   --ink: #f8fafc;
   --ink-secondary: #cbd5e1;
   --muted: #94a3b8;
-  --line: #334155;
-  --surface: #0b0f19;
-  --soft: #141d2e;
+  --line: #1e293b;
+  --surface: #0f172a;
+  --soft: #1e293b;
   --blue: #38bdf8;
   --blue-hover: #0ea5e9;
   --blue-pale: #0c2340;
@@ -35,34 +35,56 @@
   --dark-bg: #060911;
   --dark-surface: #0c1220;
   --dark-border: #1e293b;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
-  --shadow-md: 0 10px 25px -5px rgba(0,0,0,0.5);
-  --shadow-lg: 0 20px 40px -10px rgba(0,0,0,0.6);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.5);
+  --shadow-md: 0 10px 25px -5px rgba(0,0,0,0.6);
+  --shadow-lg: 0 20px 40px -10px rgba(0,0,0,0.7);
+}
+
+[data-theme="dark"] body {
+  background: #0b0f19;
+  color: #f8fafc;
 }
 
 [data-theme="dark"] .site-header {
-  background: rgba(11, 15, 25, 0.88);
+  background: rgba(11, 15, 25, 0.92);
   border-color: #1e293b;
 }
 
-[data-theme="dark"] .panel-card,
+[data-theme="dark"] .section-soft {
+  background: #090d16;
+}
+
 [data-theme="dark"] .setup-guide-card,
-[data-theme="dark"] .feature-card,
+[data-theme="dark"] .feature-item,
 [data-theme="dark"] .edition-card,
+[data-theme="dark"] .panel-card,
 [data-theme="dark"] .trust-box,
 [data-theme="dark"] .faq-item,
 [data-theme="dark"] .safety-tab-btn,
 [data-theme="dark"] .safety-step-card,
+[data-theme="dark"] .android-step-box,
 [data-theme="dark"] .cta-box {
-  background: #111827;
-  border-color: #1f2937;
+  background: #111827 !important;
+  border-color: #1f2937 !important;
   color: #f8fafc;
 }
 
+[data-theme="dark"] .edition-card.featured {
+  border-color: #0284c7 !important;
+  box-shadow: 0 0 20px rgba(2, 132, 199, 0.15);
+}
+
+[data-theme="dark"] .guide-subtip,
+[data-theme="dark"] .step-guide-row {
+  background: #0b0f19;
+  border-color: #1f2937;
+  color: #cbd5e1;
+}
+
 [data-theme="dark"] .safety-tab-btn.active {
-  background: #38bdf8;
-  color: #0b0f19;
-  border-color: #38bdf8;
+  background: #38bdf8 !important;
+  color: #0b0f19 !important;
+  border-color: #38bdf8 !important;
 }
 
 [data-theme="dark"] .nav-download {
@@ -74,10 +96,36 @@
   background: #0ea5e9;
 }
 
+[data-theme="dark"] .button-secondary {
+  background: #1e293b;
+  color: #f8fafc;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .button-secondary:hover {
+  background: #334155;
+}
+
+[data-theme="dark"] .button-outline {
+  color: #f8fafc;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .button-outline:hover {
+  background: #1e293b;
+}
+
+[data-theme="dark"] .android-install-strip {
+  background: #064e3b;
+  border-color: #047857;
+  color: #a7f3d0;
+}
+
 [data-theme="dark"] .site-footer {
   background: #060911;
   border-color: #1e293b;
 }
+
 
 
 * {
@@ -841,7 +889,7 @@ svg {
 }
 
 .setup-guide-card {
-  background: #ffffff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 28px 24px;
@@ -916,7 +964,7 @@ svg {
 }
 
 .feature-item {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 28px 24px;
@@ -966,7 +1014,7 @@ svg {
 }
 
 .edition-card {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 36px 32px;
@@ -976,6 +1024,7 @@ svg {
   box-shadow: var(--shadow-sm);
   transition: border-color 0.18s ease;
 }
+
 
 .edition-card.featured {
   border-color: #bfdbfe;
@@ -1090,7 +1139,7 @@ svg {
   align-items: center;
   gap: 8px;
   padding: 10px 18px;
-  background: #ffffff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 8px;
   font-size: 0.88rem;
@@ -1127,7 +1176,7 @@ svg {
 }
 
 .panel-card {
-  background: #ffffff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 32px 30px;
@@ -1147,7 +1196,7 @@ svg {
 
 .panel-desc {
   font-size: 0.94rem;
-  color: #334155;
+  color: var(--muted);
   line-height: 1.6;
   margin-bottom: 24px;
 }
@@ -1159,7 +1208,7 @@ svg {
 }
 
 .trust-box {
-  background: #ffffff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 24px 20px;
@@ -1169,6 +1218,7 @@ svg {
   box-shadow: var(--shadow-sm);
   transition: transform 0.18s ease, border-color 0.18s ease;
 }
+
 
 .trust-box:hover {
   transform: translateY(-2px);
@@ -1448,7 +1498,7 @@ svg {
 }
 
 .faq-item {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 10px;
   overflow: hidden;
@@ -1462,7 +1512,7 @@ svg {
   align-items: center;
   text-align: left;
   border: 0;
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   font-size: 1rem;
   font-weight: 700;
@@ -1497,10 +1547,12 @@ svg {
 }
 
 .cta-box {
-  background: #f0f7ff;
-  border: 1px solid #d0e5fc;
+  background: var(--soft);
+  border: 1px solid var(--line);
   border-radius: 16px;
-  padding: 48px 52px;
+  padding: 48px 32px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1610,7 +1662,7 @@ svg {
     left: 0;
     right: 0;
     padding: 16px 20px;
-    background: #fff;
+    background: var(--surface);
     border-bottom: 1px solid var(--line);
     box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
     flex-direction: column;
