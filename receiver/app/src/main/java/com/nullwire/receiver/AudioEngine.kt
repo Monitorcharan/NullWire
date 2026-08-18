@@ -12,4 +12,5 @@ object AudioEngine {
     external fun setTrebleBoost(gainDb: Float)
     external fun getPlaybackRms(): Float
     external fun getPlaybackPacketCount(): Long
+    external fun setWifiAcceleration(enabled: Boolean)
 }

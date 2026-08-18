@@ -64,22 +64,26 @@
     <section class="hero" id="top">
       <div class="container hero-grid">
         <div class="hero-copy">
+          <div class="hero-badge">
+            <span class="hero-badge-dot"></span>
+            <span>NullWire Pro · Lossless Wi-Fi Audio Link</span>
+          </div>
           <h1>Turn your phone into a wireless PC audio headset.</h1>
           
           <p class="hero-text">
-            Stream uncompressed 48kHz PC audio directly to your Android earphones over local Wi-Fi. Experience zero perceptible latency, dedicated gaming &amp; music profiles, 3D spatial surround, and reverse microphone support.
+            Stream bit-perfect 48kHz uncompressed audio directly to your Android earphones over local Wi-Fi. Experience sub-2.67ms latency, dedicated Microsoft-certified virtual drivers, 3D spatial surround sound, and reverse phone microphone streaming.
           </p>
 
           <!-- Direct Download Action Group right in Hero -->
           <div class="hero-download-block">
             <div class="hero-btns">
-              <a href="downloads/NullWire_Setup.exe" class="button button-primary" download>
+              <a href="downloads/Setup.exe" class="button button-primary" download>
                 <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                Download NullWire Pro (Beta)
+                Download Setup Wizard (.exe)
               </a>
-              <a href="downloads/NullWireReceiver.apk" class="button button-secondary" download>
+              <a href="downloads/NullWire.apk" class="button button-secondary" download>
                 <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-                Get Android APK
+                Get Android App (.apk)
               </a>
             </div>
             <div class="hero-subtext">
@@ -92,104 +96,46 @@
           </div>
         </div>
 
-        <!-- Interactive Studio Console Preview -->
-        <div class="console-card" aria-label="NullWire Live Stream Dashboard">
-          <div class="console-header">
-            <div class="console-title">
-              <img src="assets/logo.svg" alt="" class="console-icon" width="15" height="15" />
-              <span>NullWire Pro Console (Beta)</span>
-            </div>
-            <div class="stream-badge">
-              <span class="pulse-indicator"></span>
-              <span>STREAMING (2.67ms)</span>
+        <!-- Clean Pro Features Specification Card -->
+        <div class="hero-specs-card" aria-label="NullWire Pro Specifications">
+          <div class="specs-card-header">
+            <img src="assets/logo.svg" alt="NullWire" class="specs-logo" width="36" height="36" />
+            <div>
+              <div class="specs-title">NullWire Pro</div>
+              <div class="specs-subtitle">48kHz / 16-Bit Master PCM Pipeline</div>
             </div>
           </div>
 
-          <div class="console-body">
-            <!-- Audio Path -->
-            <div class="audio-path">
-              <div class="path-node">
-                <span class="node-type">PC Source</span>
-                <span class="node-name">Realtek® Audio (WASAPI)</span>
-              </div>
-              <div class="path-arrow">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-              </div>
-              <div class="path-node">
-                <span class="node-type">Phone Receiver</span>
-                <span class="node-name">Pixel 8 Pro (192.168.1.15)</span>
-              </div>
+          <div class="specs-list">
+            <div class="spec-row">
+              <span class="spec-label">Audio Latency</span>
+              <span class="spec-val highlight-cyan">&lt; 2.67 ms (Hardware DMA)</span>
             </div>
-
-            <!-- Profile Selector -->
-            <div class="console-section">
-              <div class="section-label">Acoustic Profile</div>
-              <div class="profile-chips">
-                <button class="chip active" data-profile="gaming" type="button">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="4"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="11" r="1"/><circle cx="18" cy="13" r="1"/></svg>
-                  Gaming (2.67ms)
-                </button>
-                <button class="chip" data-profile="hifi" type="button">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-                  Hi-Fi Harman
-                </button>
-                <button class="chip" data-profile="cinema" type="button">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-                  Cinema 3D
-                </button>
-                <button class="chip" data-profile="direct" type="button">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-                  Direct
-                </button>
-              </div>
+            <div class="spec-row">
+              <span class="spec-label">Stream Protocol</span>
+              <span class="spec-val">Wi-Fi FastPath UDP (MMCSS)</span>
             </div>
-
-            <!-- Live Visualizer Section -->
-            <div class="console-visuals">
-              <div class="visual-box">
-                <div class="box-title">7-Band Spectrum</div>
-                <div class="spectrum-bars">
-                  <div class="spec-bar-wrap"><div class="spec-bar b1"></div><span>60Hz</span></div>
-                  <div class="spec-bar-wrap"><div class="spec-bar b2"></div><span>150Hz</span></div>
-                  <div class="spec-bar-wrap"><div class="spec-bar b3"></div><span>400Hz</span></div>
-                  <div class="spec-bar-wrap"><div class="spec-bar b4"></div><span>1kHz</span></div>
-                  <div class="spec-bar-wrap"><div class="spec-bar b5"></div><span>2.5k</span></div>
-                  <div class="spec-bar-wrap"><div class="spec-bar b6"></div><span>6kHz</span></div>
-                  <div class="spec-bar-wrap"><div class="spec-bar b7"></div><span>14k</span></div>
-                </div>
-              </div>
-
-              <div class="visual-box">
-                <div class="box-title-row">
-                  <div class="box-title">Stereo PCM Waveform</div>
-                  <div class="ch-tags">
-                    <span class="tag-l">CH-L</span>
-                    <span class="tag-r">CH-R</span>
-                  </div>
-                </div>
-                <canvas id="scopeCanvas" width="220" height="60"></canvas>
-              </div>
+            <div class="spec-row">
+              <span class="spec-label">Audio Driver</span>
+              <span class="spec-val">Microsoft-Certified Virtual Cable</span>
             </div>
-
-            <!-- Active Features Strip -->
-            <div class="features-pill-row">
-              <span class="active-badge">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                3D Binaural Spatial Audio Active
-              </span>
-              <span class="active-badge">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                Reverse Phone Mic Linked
-              </span>
+            <div class="spec-row">
+              <span class="spec-label">DSP Acoustic Profiles</span>
+              <span class="spec-val">Gaming, Hi-Fi, Cinema 3D, Direct</span>
             </div>
-
-            <!-- Telemetry Footer -->
-            <div class="console-footer">
-              <div class="metric-item">Latency: <strong>2.67 ms</strong></div>
-              <div class="metric-item">Jitter: <strong>±0.12 ms</strong></div>
-              <div class="metric-item">Loss: <strong class="text-green">0.0%</strong></div>
-              <div class="metric-item">Format: <strong>48kHz / 16-Bit Lossless</strong></div>
+            <div class="spec-row">
+              <span class="spec-label">Reverse Phone Mic</span>
+              <span class="spec-val highlight-green">Integrated (Discord &amp; OBS Ready)</span>
             </div>
+            <div class="spec-row">
+              <span class="spec-label">Device Discovery</span>
+              <span class="spec-val">Instant Zero-Touch LAN Broadcast</span>
+            </div>
+          </div>
+
+          <div class="specs-card-footer">
+            <span class="status-indicator">● Active Streaming Engine</span>
+            <a href="downloads/NullWire.exe" class="portable-link" download>Portable EXE (NullWire.exe) →</a>
           </div>
         </div>
       </div>
@@ -396,13 +342,13 @@
             </ul>
 
             <div class="edition-actions">
-              <a href="downloads/NullWire_Setup.exe" class="button button-primary full-width" download>
-                Download Pro Beta Setup (.exe)
+              <a href="downloads/Setup.exe" class="button button-primary full-width" download>
+                Download Setup Wizard (.exe)
               </a>
               <div class="alt-links">
-                <a href="downloads/NullWireSender.exe" download>Portable Studio Beta (.exe)</a>
+                <a href="downloads/NullWire.exe" download>Portable EXE (NullWire.exe)</a>
                 <span>•</span>
-                <a href="downloads/NullWireReceiver.apk" download>Android Studio Beta (.apk)</a>
+                <a href="downloads/NullWire.apk" download>Android APK (NullWire.apk)</a>
               </div>
             </div>
           </div>
@@ -453,61 +399,23 @@
               Microsoft Windows Defender displays a generic <strong>"Windows protected your PC — Unknown Publisher"</strong> notice for <em>all newly published independent open-source software</em> that does not pay $400/year for enterprise corporate certificates. <strong>NullWire is 100% clean, safe, and virus-free.</strong>
             </p>
 
-            <div class="simulation-grid">
-              <!-- Left: Interactive Live Mockup of SmartScreen -->
-              <div class="smartscreen-sim-card" id="smartscreenSim">
-                <div class="sim-topbar">
-                  <span class="sim-shield-icon">🛡️</span>
-                  <strong>Windows protected your PC</strong>
-                </div>
-                <div class="sim-text">
-                  Microsoft Defender SmartScreen prevented an unrecognized app from starting. Running this app might put your PC at risk.
-                </div>
-                
-                <div class="sim-more-info-link" id="simMoreInfoBtn">
-                  <u>More info</u> <span class="click-hint">(← Click to test interactive demo)</span>
-                </div>
-
-                <div class="sim-app-details" id="simAppDetails">
-                  <div><span>App:</span> <strong>NullWire_Setup.exe</strong></div>
-                  <div><span>Publisher:</span> <strong>Independent Open Source (Monitorcharan)</strong></div>
-                </div>
-
-                <div class="sim-actions">
-                  <button class="sim-btn sim-btn-run" id="simRunBtn" type="button">Run anyway</button>
-                  <button class="sim-btn sim-btn-cancel" type="button">Don't run</button>
-                </div>
-                
-                <div class="sim-success-msg" id="simSuccessMsg">
-                  ✓ Verified: Setup launches cleanly with 0 issues!
-                </div>
+            <div class="safety-steps-grid">
+              <div class="safety-step-card">
+                <div class="step-icon-badge">1</div>
+                <h4>Click "More info"</h4>
+                <p>When the Windows SmartScreen dialog appears, click the underlined <em>More info</em> link on the prompt.</p>
               </div>
 
-              <!-- Right: Step-by-Step Instructions -->
-              <div class="installation-steps-box">
-                <div class="step-guide-row">
-                  <div class="num-chip">Step 1</div>
-                  <div>
-                    <strong>Click "More info"</strong>
-                    <p>When the blue Windows SmartScreen window appears, click the underlined <em>More info</em> link below the text.</p>
-                  </div>
-                </div>
+              <div class="safety-step-card">
+                <div class="step-icon-badge">2</div>
+                <h4>Click "Run anyway"</h4>
+                <p>Click the <em>Run anyway</em> button that appears at the bottom to start the setup wizard immediately.</p>
+              </div>
 
-                <div class="step-guide-row">
-                  <div class="num-chip">Step 2</div>
-                  <div>
-                    <strong>Click "Run anyway"</strong>
-                    <p>A button labeled <em>Run anyway</em> will appear at the bottom right. Click it to launch the installer.</p>
-                  </div>
-                </div>
-
-                <div class="step-guide-row">
-                  <div class="num-chip alt-chip">Alternative</div>
-                  <div>
-                    <strong>File Properties Unblock</strong>
-                    <p>Right-click the downloaded <code>.exe</code> ➔ Click <strong>Properties</strong> ➔ Check <strong>Unblock</strong> at the bottom ➔ Click <strong>OK</strong>.</p>
-                  </div>
-                </div>
+              <div class="safety-step-card">
+                <div class="step-icon-badge">✓</div>
+                <h4>File Properties Unblock</h4>
+                <p>Alternatively, right-click <code>Setup.exe</code> ➔ <strong>Properties</strong> ➔ Check <strong>Unblock</strong> ➔ <strong>OK</strong>.</p>
               </div>
             </div>
           </div>
@@ -731,13 +639,13 @@
             <p>100% free, open-source, and local wireless audio streaming for Windows and Android.</p>
           </div>
           <div class="cta-buttons">
-            <a href="downloads/NullWire_Setup.exe" class="button button-primary" download>
+            <a href="downloads/Setup.exe" class="button button-primary" download>
               <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Windows Setup (.exe)
             </a>
-            <a href="downloads/NullWireReceiver.apk" class="button button-outline" download>
+            <a href="downloads/NullWire.apk" class="button button-outline" download>
               <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-              Android Receiver (.apk)
+              Android App (.apk)
             </a>
           </div>
         </div>

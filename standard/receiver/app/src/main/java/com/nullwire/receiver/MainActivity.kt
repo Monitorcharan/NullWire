@@ -297,7 +297,13 @@ class MainActivity : AppCompatActivity() {
             }
             val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
             if (wifiLock == null) {
-                wifiLock = wm?.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "NullWire:StandardWifiLock")?.apply {
+                val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    WifiManager.WIFI_MODE_FULL_LOW_LATENCY
+                } else {
+                    @Suppress("DEPRECATION")
+                    WifiManager.WIFI_MODE_FULL_HIGH_PERF
+                }
+                wifiLock = wm?.createWifiLock(mode, "NullWire:StandardWifiLock")?.apply {
                     acquire()
                 }
             }

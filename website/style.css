@@ -291,62 +291,167 @@ svg {
   text-underline-offset: 3px;
 }
 
-.sep {
-  color: #cbd5e1;
-}
-
-/* Studio Console Preview */
-.console-card {
-  background: var(--dark-bg);
-  border: 1px solid var(--dark-border);
-  border-radius: 12px;
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
-  color: #e2e8f0;
-}
-
-.console-header {
-  height: 40px;
-  background: #111722;
-  border-bottom: 1px solid #1a2332;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-}
-
-.console-title {
-  display: flex;
+.hero-badge {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #cbd5e1;
+  background: var(--blue-pale);
+  color: var(--blue);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  border: 1px solid #bae6fd;
 }
 
-.console-icon {
-  width: 15px;
-  height: 15px;
-  border-radius: 3px;
+.hero-badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--blue);
+  box-shadow: 0 0 6px rgba(37, 99, 235, 0.5);
 }
 
-.stream-badge {
+/* Pro Specifications Card */
+.hero-specs-card {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 24px 26px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.specs-card-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-family: 'DM Mono', monospace;
-  font-size: 0.68rem;
-  font-weight: 600;
-  color: #10b981;
+  gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
 }
 
-.pulse-indicator {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+.specs-logo {
+  border-radius: 8px;
+  background: #0a192f;
+  padding: 4px;
 }
+
+.specs-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.specs-subtitle {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+}
+
+.specs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.spec-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--soft);
+  border-radius: 8px;
+  font-size: 0.84rem;
+}
+
+.spec-label {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.spec-val {
+  font-weight: 700;
+  color: var(--ink);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.8rem;
+}
+
+.spec-val.highlight-cyan {
+  color: #0284c7;
+}
+
+.spec-val.highlight-green {
+  color: #059669;
+}
+
+.specs-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 0.78rem;
+}
+
+.status-indicator {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.portable-link {
+  color: var(--blue);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+/* Safety Steps Grid */
+.safety-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-top: 20px;
+}
+
+.safety-step-card {
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.step-icon-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--blue);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.safety-step-card h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+
+.safety-step-card p {
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.45;
+  margin: 0;
+}
+
 
 .console-body {
   padding: 16px 18px;

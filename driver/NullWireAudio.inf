@@ -1,0 +1,90 @@
+;
+; NullWireAudio.inf
+; NullWire High-Fidelity Virtual Audio Streaming Driver
+; Copyright (c) 2026 NullWire Audio Systems. All rights reserved.
+;
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=MEDIA
+ClassGuid={4d36e96c-e325-11ce-bfc1-08002be10318}
+Provider=%ProviderName%
+CatalogFile=NullWireAudio.cat
+DriverVer=08/16/2026,1.0.0.1
+PnpLockdown=1
+
+[Manufacturer]
+%ManufacturerName%=Standard,NTamd64.10.0
+
+[Standard.NTamd64.10.0]
+%NullWireAudio.DeviceDesc%=NullWireAudio_Device, ROOT\NullWireAudio
+%NullWireAudio.DeviceDesc%=NullWireAudio_Device, *NullWireAudio
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+NullWireAudio.sys = 1,,
+
+[DestinationDirs]
+DefaultDestDir = 12 ; %windir%\system32\drivers
+NullWireAudio_Device_CoInstaller_CopyFiles = 11
+
+; ── Install Section ──────────────────────────────────────────────────────────
+
+[NullWireAudio_Device.NT]
+CopyFiles=NullWireAudio_Device.NT.Copy
+AddReg=NullWireAudio_Device.NT.AddReg
+
+[NullWireAudio_Device.NT.Copy]
+NullWireAudio.sys
+
+[NullWireAudio_Device.NT.AddReg]
+HKR,,AssociatedFilters,0x00010000,"wdmaud,swmidi,redbook"
+HKR,,Driver,,NullWireAudio.sys
+HKR,,NTMPDriver,,"NullWireAudio.sys,sb16.vxd"
+HKR,Drivers,SubClasses,,"wave,midi,mixer"
+HKR,Drivers\wave\wdmaud.drv,Driver,,wdmaud.drv
+HKR,Drivers\midi\wdmaud.drv,Driver,,wdmaud.drv
+HKR,Drivers\mixer\wdmaud.drv,Driver,,wdmaud.drv
+HKR,Drivers\wave\wdmaud.drv,Description,,%NullWireAudio.DeviceDesc%
+HKR,Drivers\midi\wdmaud.drv,Description,,%NullWireAudio.DeviceDesc%
+HKR,Drivers\mixer\wdmaud.drv,Description,,%NullWireAudio.DeviceDesc%
+
+[NullWireAudio_Device.NT.Interfaces]
+AddInterface=%KSCATEGORY_AUDIO%,%KSNAME_Wave%,NullWireAudio.Wave
+AddInterface=%KSCATEGORY_RENDER%,%KSNAME_Wave%,NullWireAudio.Wave
+AddInterface=%KSCATEGORY_CAPTURE%,%KSNAME_Wave%,NullWireAudio.Wave
+AddInterface=%KSCATEGORY_REALTIME%,%KSNAME_Wave%,NullWireAudio.Wave
+
+[NullWireAudio.Wave]
+AddReg=NullWireAudio.Wave.AddReg
+
+[NullWireAudio.Wave.AddReg]
+HKR,,CLSID,,%Proxy.CLSID%
+HKR,,FriendlyName,,%NullWireAudio.Wave.szPname%
+
+[NullWireAudio_Device.NT.Services]
+AddService = NullWireAudio, 0x00000002, NullWireAudio_Service_Inst
+
+[NullWireAudio_Service_Inst]
+DisplayName    = %NullWireAudio.SVCDESC%
+ServiceType    = 1               ; SERVICE_KERNEL_DRIVER
+StartType      = 3               ; SERVICE_DEMAND_START
+ErrorControl   = 1               ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\NullWireAudio.sys
+
+[Strings]
+ProviderName        = "NullWire Audio Systems"
+ManufacturerName    = "NullWire Technologies"
+DiskName            = "NullWire Virtual Audio Driver Installation Disk"
+NullWireAudio.DeviceDesc = "NullWire Virtual Audio Device"
+NullWireAudio.SVCDESC    = "NullWire Virtual Audio Streaming Service"
+NullWireAudio.Wave.szPname = "NullWire Virtual Audio Device (Studio Master 48kHz)"
+
+Proxy.CLSID         = "{17CCA71B-ECD7-11D0-B908-00A0C9223196}"
+KSCATEGORY_AUDIO    = "{6994AD04-93EF-11D0-A3CC-00A0C9223196}"
+KSCATEGORY_RENDER   = "{65E8773E-8F56-11D0-A3B9-00A0C9223196}"
+KSCATEGORY_CAPTURE  = "{65E8773D-8F56-11D0-A3B9-00A0C9223196}"
+KSCATEGORY_REALTIME = "{EB115FFC-10C8-4964-831D-6DCB02E6F23F}"
+KSNAME_Wave         = "Wave"

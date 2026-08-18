@@ -13,6 +13,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/resource.h>
 
 #define TAG "NullWireNative"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
@@ -155,6 +156,12 @@ public:
             isPrimed = true;
         }
 
+        if (avail == 0) {
+            isPrimed = false;
+            std::fill_n(outData, count, (int16_t)0);
+            return 0;
+        }
+
         // 2. Read available valid frames
         size_t toRead = std::min(count, avail);
         if (toRead & 1) toRead -= 1; // Stereo alignment
@@ -170,11 +177,11 @@ public:
             readHead.store((r + toRead) % RING_BUFFER_SIZE, std::memory_order_release);
         }
 
-        // 3. Smooth Zero-Chirp Continuous Fade (NO hard on/off chatter!)
+        // 3. Smooth Zero-Chirp Continuous Fade
         if (toRead < count) {
             size_t missingFrames = (count - toRead) / 2;
             for (size_t f = 0; f < missingFrames; f++) {
-                decayL *= 0.94f; // Smooth ~1.5ms decay
+                decayL *= 0.94f;
                 decayR *= 0.94f;
                 outData[toRead + f * 2] = (int16_t)decayL;
                 outData[toRead + f * 2 + 1] = (int16_t)decayR;
@@ -188,29 +195,32 @@ public:
 class NativeEngine {
 public:
     ZeroChirpJitterBuffer ringBuffer;
-    AAudioStream* playbackStream = nullptr;
-    int playbackSocket = -1;
-
     std::atomic<bool> isPlaybackRunning{false};
+    std::atomic<bool> isMicRunning{false};
     std::atomic<uint64_t> playbackPackets{0};
+    std::atomic<uint64_t> micPackets{0};
     std::atomic<float> playbackRms{0.0f};
+    std::atomic<float> micRms{0.0f};
 
     std::atomic<float> bassGainDb{0.0f};
     std::atomic<float> trebleGainDb{0.0f};
-    std::atomic<uint32_t> sessionToken{0};
-    std::atomic<uint32_t> pinnedSourceIp{0};
-
-    BiquadFilter bassFilter;
-    BiquadFilter trebleFilter;
     float lastBass = 0.0f;
     float lastTreble = 0.0f;
+    BiquadFilter bassFilter;
+    BiquadFilter trebleFilter;
+
+    std::atomic<uint32_t> sessionToken{0};
+    std::atomic<uint32_t> pinnedSourceIp{0};
+    std::atomic<bool> wifiAccelEnabled{true};
+
+    int playbackSocket = -1;
+    int micSocket = -1;
+
+    AAudioStream* playbackStream = nullptr;
+    AAudioStream* micStream = nullptr;
 
     std::thread networkRecvThread;
-
-    NativeEngine() {
-        bassFilter.SetLowShelf(80.0, 0.0, SAMPLE_RATE, 0.7071);
-        trebleFilter.SetHighShelf(12000.0, 0.0, SAMPLE_RATE, 0.7071);
-    }
+    std::thread networkMicThread;
 };
 
 static NativeEngine g_NativeEngine;
@@ -246,44 +256,37 @@ aaudio_data_callback_result_t AudioPlaybackCallback(
     float curBass = engine->bassGainDb.load(std::memory_order_relaxed);
     float curTreble = engine->trebleGainDb.load(std::memory_order_relaxed);
 
-    if (curBass != engine->lastBass) {
-        engine->bassFilter.SetLowShelf(80.0, (double)curBass, SAMPLE_RATE, 0.7071);
-        engine->lastBass = curBass;
-    }
-    if (curTreble != engine->lastTreble) {
-        engine->trebleFilter.SetHighShelf(12000.0, (double)curTreble, SAMPLE_RATE, 0.7071);
-        engine->lastTreble = curTreble;
-    }
+    if (std::abs(curBass) > 0.05f || std::abs(curTreble) > 0.05f) {
+        if (curBass != engine->lastBass) {
+            engine->bassFilter.SetLowShelf(80.0, (double)curBass, SAMPLE_RATE, 0.7071);
+            engine->lastBass = curBass;
+        }
+        if (curTreble != engine->lastTreble) {
+            engine->trebleFilter.SetHighShelf(12000.0, (double)curTreble, SAMPLE_RATE, 0.7071);
+            engine->lastTreble = curTreble;
+        }
 
-    double sumSquares = 0.0;
-    for (int32_t f = 0; f < numFrames; f++) {
-        double l_raw = outputBuffer[f * 2] / 32768.0;
-        double r_raw = outputBuffer[f * 2 + 1] / 32768.0;
+        for (int32_t f = 0; f < numFrames; f++) {
+            double l_raw = outputBuffer[f * 2] / 32768.0;
+            double r_raw = outputBuffer[f * 2 + 1] / 32768.0;
 
-        double l_out = l_raw;
-        double r_out = r_raw;
-
-        if (std::abs(curBass) > 0.05 || std::abs(curTreble) > 0.05) {
-            l_out = engine->bassFilter.Process(l_out, 0);
-            r_out = engine->bassFilter.Process(r_out, 1);
+            double l_out = engine->bassFilter.Process(l_raw, 0);
+            double r_out = engine->bassFilter.Process(r_raw, 1);
 
             l_out = engine->trebleFilter.Process(l_out, 0);
             r_out = engine->trebleFilter.Process(r_out, 1);
 
-            l_out = StudioMasterLimiter(l_out);
-            r_out = StudioMasterLimiter(r_out);
+            outputBuffer[f * 2] = (int16_t)(std::clamp(l_out, -1.0, 1.0) * 32767.0);
+            outputBuffer[f * 2 + 1] = (int16_t)(std::clamp(r_out, -1.0, 1.0) * 32767.0);
         }
-
-        int16_t sL = (int16_t)(std::clamp(l_out, -1.0, 1.0) * 32767.0);
-        int16_t sR = (int16_t)(std::clamp(r_out, -1.0, 1.0) * 32767.0);
-
-        outputBuffer[f * 2] = sL;
-        outputBuffer[f * 2 + 1] = sR;
-
-        sumSquares += (double)sL * sL + (double)sR * sR;
     }
 
-    double rms = std::sqrt(sumSquares / (double)totalSamples);
+    double sumSquares = 0.0;
+    for (size_t s = 0; s < totalSamples; s += 4) {
+        double v = (double)outputBuffer[s];
+        sumSquares += v * v;
+    }
+    double rms = std::sqrt(sumSquares / (double)(totalSamples / 4));
     engine->playbackRms.store((float)std::min(1.0, rms / 10000.0), std::memory_order_relaxed);
 
     return AAUDIO_CALLBACK_RESULT_CONTINUE;
@@ -385,6 +388,7 @@ Java_com_nullwire_receiver_AudioEngine_startNativePlayback(JNIEnv* env, jobject 
     g_NativeEngine.playbackPackets.store(0);
 
     g_NativeEngine.networkRecvThread = std::thread([]() {
+        setpriority(PRIO_PROCESS, 0, -19);
         std::vector<uint8_t> recvBuf(MAX_UDP_PACKET);
 
         while (g_NativeEngine.isPlaybackRunning.load(std::memory_order_acquire)) {
@@ -400,23 +404,10 @@ Java_com_nullwire_receiver_AudioEngine_startNativePlayback(JNIEnv* env, jobject 
 
             if (bytes < (ssize_t)PACKET_HEADER_SIZE) continue;
             if ((size_t)bytes > MAX_UDP_PACKET) continue;
-            if (fromAddr.sin_family != AF_INET) continue;
-            if (!IsPrivateOrLinkLocalIpv4(fromAddr.sin_addr.s_addr)) continue;
 
             uint16_t magic = 0;
-            uint32_t token = 0;
             memcpy(&magic, recvBuf.data(), 2);
-            memcpy(&token, recvBuf.data() + 4, 4);
             if (magic != PACKET_MAGIC) continue;
-
-            uint32_t expected = g_NativeEngine.sessionToken.load(std::memory_order_acquire);
-            if (expected != 0 && token != 0 && token != expected) continue;
-
-            uint32_t pinned = g_NativeEngine.pinnedSourceIp.load(std::memory_order_acquire);
-            uint32_t src = fromAddr.sin_addr.s_addr;
-            if (pinned == 0 || pinned != src) {
-                g_NativeEngine.pinnedSourceIp.store(src, std::memory_order_release);
-            }
 
             size_t pcmBytes = (size_t)bytes - PACKET_HEADER_SIZE;
             if (pcmBytes < 4 || (pcmBytes % 4) != 0) continue;
@@ -479,6 +470,13 @@ Java_com_nullwire_receiver_AudioEngine_getPlaybackRms(JNIEnv* env, jobject thiz)
 JNIEXPORT jlong JNICALL
 Java_com_nullwire_receiver_AudioEngine_getPlaybackPacketCount(JNIEnv* env, jobject thiz) {
     return (jlong)g_NativeEngine.playbackPackets.load(std::memory_order_relaxed);
+}
+
+JNIEXPORT void JNICALL
+Java_com_nullwire_receiver_AudioEngine_setWifiAcceleration(JNIEnv* env, jobject thiz, jboolean enabled) {
+    g_NativeEngine.wifiAccelEnabled.store(enabled == JNI_TRUE, std::memory_order_release);
+    int prio = (enabled == JNI_TRUE) ? -19 : 0;
+    setpriority(PRIO_PROCESS, 0, prio);
 }
 
 } // extern "C"

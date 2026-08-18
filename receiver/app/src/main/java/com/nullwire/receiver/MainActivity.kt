@@ -92,6 +92,49 @@ class MainActivity : AppCompatActivity() {
     private val sessionToken = AtomicInteger(0)
     private var lastPacketCount: Long = 0
     private var isConnectedState = false
+    private var stalePacketTicks = 0
+
+    private lateinit var tvWifiAccelStatus: TextView
+    private lateinit var switchWifiAccel: androidx.appcompat.widget.SwitchCompat
+    private var isWifiAccelEnabled = true
+
+    private lateinit var layoutToastBanner: View
+    private lateinit var viewToastDot: View
+    private lateinit var tvToastTitle: TextView
+    private lateinit var tvToastMessage: TextView
+    private var toastDismissRunnable: Runnable? = null
+
+    fun showAppToast(title: String, message: String, dotColor: Int, durationMs: Long = 3500) {
+        runOnUiThread {
+            toastDismissRunnable?.let { handler.removeCallbacks(it) }
+
+            tvToastTitle.text = title
+            tvToastMessage.text = message
+            viewToastDot.backgroundTintList = android.content.res.ColorStateList.valueOf(dotColor)
+
+            if (layoutToastBanner.visibility != View.VISIBLE) {
+                layoutToastBanner.visibility = View.VISIBLE
+                layoutToastBanner.alpha = 0f
+                layoutToastBanner.translationY = 80f
+                layoutToastBanner.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(280)
+                    .start()
+            }
+
+            val dismiss = Runnable {
+                layoutToastBanner.animate()
+                    .alpha(0f)
+                    .translationY(80f)
+                    .setDuration(280)
+                    .withEndAction { layoutToastBanner.visibility = View.GONE }
+                    .start()
+            }
+            toastDismissRunnable = dismiss
+            handler.postDelayed(dismiss, durationMs)
+        }
+    }
 
     private val handler = Handler(Looper.getMainLooper())
     private val telemetryRunnable = object : Runnable {
@@ -102,14 +145,24 @@ class MainActivity : AppCompatActivity() {
                 val level = (rms * 100).toInt().coerceIn(0, 100)
                 pbLevelMeter.progress = level
 
-                if (packets > 0) {
+                if (packets > lastPacketCount) {
+                    stalePacketTicks = 0
                     tvStats.text = "Packets: $packets  ·  DMA Latency: <2.67ms  ·  Loss: 0.0%"
-                    if (!isConnectedState && packets > lastPacketCount + 5) {
+                    if (!isConnectedState) {
                         isConnectedState = true
                         tvStatus.text = "● Streaming 48kHz Lossless Audio"
                         tvStatus.setTextColor(getColor(R.color.color_green))
-                        Toast.makeText(this@MainActivity, "⚡ Connected to PC! Audio playing.", Toast.LENGTH_SHORT).show()
-                        updateNotification("● Streaming Lossless Audio (DMA Active)")
+                        showAppToast("CONNECTED TO PC", "Streaming Lossless 48kHz Audio (<2.67ms DMA)", getColor(R.color.color_green), 3500)
+                        updateNotification("● Streaming Lossless Audio (DMA Active)", true)
+                    }
+                } else if (packets > 0 && isConnectedState) {
+                    stalePacketTicks++
+                    if (stalePacketTicks > 50) { // ~2.5 seconds without packets
+                        isConnectedState = false
+                        tvStatus.text = "⚠️ Connection Lost · Waiting for PC..."
+                        tvStatus.setTextColor(getColor(R.color.color_red))
+                        showAppToast("CONNECTION LOST", "PC audio stream disconnected. Searching...", getColor(R.color.color_red), 4000)
+                        updateNotification("⚠️ Connection Lost · Waiting for PC...", false)
                     }
                 } else {
                     tvStats.text = "Packets: 0  ·  DMA Ready  ·  Loss: 0.0%"
@@ -140,6 +193,29 @@ class MainActivity : AppCompatActivity() {
         tvTrebleVal = findViewById(R.id.tvTrebleVal)
         tvMicStatus = findViewById(R.id.tvMicStatus)
         btnMic = findViewById(R.id.btnMic)
+        tvWifiAccelStatus = findViewById(R.id.tvWifiAccelStatus)
+        switchWifiAccel = findViewById(R.id.switchWifiAccel)
+        layoutToastBanner = findViewById(R.id.layoutToastBanner)
+        viewToastDot = findViewById(R.id.viewToastDot)
+        tvToastTitle = findViewById(R.id.tvToastTitle)
+        tvToastMessage = findViewById(R.id.tvToastMessage)
+
+        switchWifiAccel.isChecked = isWifiAccelEnabled
+        switchWifiAccel.setOnCheckedChangeListener { _, isChecked ->
+            isWifiAccelEnabled = isChecked
+            AudioEngine.setWifiAcceleration(isChecked)
+            if (isChecked) {
+                if (isListening) acquireLocks()
+                tvWifiAccelStatus.text = "⚡ Acceleration Active (Low-Latency Lock & Nice -19)"
+                tvWifiAccelStatus.setTextColor(getColor(R.color.color_green))
+                showAppToast("⚡ WI-FI FASTPATH ACTIVE", "Low-Latency Wi-Fi Lock & High Priority Active", getColor(R.color.color_green), 3000)
+            } else {
+                releaseLocks()
+                tvWifiAccelStatus.text = "⚪ Standard Wi-Fi Mode (Battery Saver)"
+                tvWifiAccelStatus.setTextColor(getColor(R.color.color_text_sec))
+                showAppToast("⚪ STANDARD WI-FI MODE", "Battery Saver Mode Active", getColor(R.color.color_text_sec), 3000)
+            }
+        }
 
         ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { view, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -186,9 +262,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Auto-start discovery beacon and audio listener for zero friction
+        // Auto-start discovery beacon so PC can find this phone
         startDiscoveryBeacon()
-        startListening()
+        // NOTE: Audio listening does NOT auto-start. User must press Listen button.
     }
 
     private fun createNotificationChannel() {
@@ -204,20 +280,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateNotification(contentText: String) {
+    private fun updateNotification(contentText: String, isConnected: Boolean = false) {
         try {
             val intent = Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
             val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
 
+            val title = if (isConnected) "⚡ NullWire Connected" else "NullWire Pro Audio"
             val builder = NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle("NullWire Pro Audio")
+                .setContentTitle(title)
                 .setContentText(contentText)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setPriority(if (isConnected) NotificationCompat.PRIORITY_DEFAULT else NotificationCompat.PRIORITY_LOW)
 
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.notify(NOTIFICATION_ID, builder.build())
@@ -314,12 +391,14 @@ class MainActivity : AppCompatActivity() {
 
                     val myIp = getWifiIpAddress()
                     val token = sessionToken.get().toUInt()
-                    val beaconMsg = "NWBC|${sanitizedDeviceName()}|$myIp|$token"
+                    val beaconMsg = "NWDISC|${sanitizedDeviceName()}|$token"
                     val beaconBytes = beaconMsg.toByteArray(Charsets.US_ASCII)
+                    val beaconMsg2 = "NWBC|${sanitizedDeviceName()}|$myIp|$token"
+                    val beaconBytes2 = beaconMsg2.toByteArray(Charsets.US_ASCII)
 
                     try {
-                        val bcastPkt = DatagramPacket(beaconBytes, beaconBytes.size, bcastAddr, DISCOVERY_PORT)
-                        socket.send(bcastPkt)
+                        socket.send(DatagramPacket(beaconBytes, beaconBytes.size, bcastAddr, DISCOVERY_PORT))
+                        socket.send(DatagramPacket(beaconBytes2, beaconBytes2.size, bcastAddr, DISCOVERY_PORT))
                     } catch (_: Exception) {}
 
                     val endTime = System.currentTimeMillis() + 1000L
@@ -545,7 +624,13 @@ class MainActivity : AppCompatActivity() {
             }
             val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
             if (wifiLock == null) {
-                wifiLock = wm?.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "NullWire:NativeWifiLock")?.apply {
+                val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    WifiManager.WIFI_MODE_FULL_LOW_LATENCY
+                } else {
+                    @Suppress("DEPRECATION")
+                    WifiManager.WIFI_MODE_FULL_HIGH_PERF
+                }
+                wifiLock = wm?.createWifiLock(mode, "NullWire:NativeWifiLock")?.apply {
                     acquire()
                 }
             }
