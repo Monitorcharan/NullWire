@@ -313,99 +313,91 @@ svg {
   box-shadow: 0 0 6px rgba(37, 99, 235, 0.5);
 }
 
-/* Pro Specifications Card */
-.hero-specs-card {
-  background: #ffffff;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 24px 26px;
-  box-shadow: var(--shadow-lg);
+/* Hero Animated Official Brand Logo (Clean & Pure, No Neon) */
+.hero-logo-container {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.specs-card-header {
-  display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 14px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--line);
+  padding: 10px;
 }
 
-.specs-logo {
-  border-radius: 8px;
-  background: #0a192f;
-  padding: 4px;
-}
-
-.specs-title {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--ink);
-}
-
-.specs-subtitle {
-  font-size: 0.78rem;
-  color: var(--muted);
-  font-family: 'DM Mono', monospace;
-}
-
-.specs-list {
+.logo-floating-wrapper {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.spec-row {
-  display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  padding: 8px 12px;
-  background: var(--soft);
-  border-radius: 8px;
-  font-size: 0.84rem;
+  width: 250px;
+  height: 250px;
+  border-radius: 36px;
+  background: transparent;
+  animation: gentleFloat 4.5s ease-in-out infinite alternate;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.spec-label {
-  font-weight: 600;
-  color: var(--muted);
+.logo-floating-wrapper:hover {
+  transform: translateY(-8px) scale(1.04);
 }
 
-.spec-val {
-  font-weight: 700;
-  color: var(--ink);
-  font-family: 'DM Mono', monospace;
-  font-size: 0.8rem;
+.hero-animated-logo {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 20px 35px rgba(10, 25, 47, 0.2));
+  border-radius: 30px;
 }
 
-.spec-val.highlight-cyan {
-  color: #0284c7;
+.wave-cyan {
+  transform-origin: center;
+  animation: subtleWaveL 3s ease-in-out infinite alternate;
 }
 
-.spec-val.highlight-green {
-  color: #059669;
+.wave-purple {
+  transform-origin: center;
+  animation: subtleWaveR 3s ease-in-out infinite alternate 0.5s;
 }
 
-.specs-card-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-  font-size: 0.78rem;
+.logo-arc-cyan {
+  animation: subtleArcPulse 4s ease-in-out infinite alternate;
 }
 
-.status-indicator {
-  color: #10b981;
-  font-weight: 600;
+@keyframes gentleFloat {
+  0% {
+    transform: translateY(0px);
+  }
+  100% {
+    transform: translateY(-12px);
+  }
 }
 
-.portable-link {
-  color: var(--blue);
-  font-weight: 600;
-  text-decoration: underline;
+@keyframes subtleWaveL {
+  0% {
+    transform: scaleY(0.95) translateY(1px);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scaleY(1.05) translateY(-1px);
+    opacity: 1;
+  }
 }
+
+@keyframes subtleWaveR {
+  0% {
+    transform: scaleY(1.05) translateY(-1px);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(0.95) translateY(1px);
+    opacity: 0.9;
+  }
+}
+
+@keyframes subtleArcPulse {
+  0% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 
 /* Safety Steps Grid */
 .safety-steps-grid {
