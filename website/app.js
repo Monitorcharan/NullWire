@@ -58,5 +58,25 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
-});
 
+  // Dark / Light Theme Switcher
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
+  const currentTheme = localStorage.getItem('nullwire-theme') || 'light';
+
+  if (currentTheme === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
+
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      if (isDark) {
+        document.documentElement.removeAttribute('data-theme');
+        localStorage.setItem('nullwire-theme', 'light');
+      } else {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        localStorage.setItem('nullwire-theme', 'dark');
+      }
+    });
+  }
+});

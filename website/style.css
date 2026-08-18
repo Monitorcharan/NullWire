@@ -20,6 +20,66 @@
   --shadow-lg: 0 20px 40px -10px rgba(15,23,42,0.18);
 }
 
+[data-theme="dark"] {
+  --ink: #f8fafc;
+  --ink-secondary: #cbd5e1;
+  --muted: #94a3b8;
+  --line: #334155;
+  --surface: #0b0f19;
+  --soft: #141d2e;
+  --blue: #38bdf8;
+  --blue-hover: #0ea5e9;
+  --blue-pale: #0c2340;
+  --green: #34d399;
+  --green-pale: #064e3b;
+  --dark-bg: #060911;
+  --dark-surface: #0c1220;
+  --dark-border: #1e293b;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md: 0 10px 25px -5px rgba(0,0,0,0.5);
+  --shadow-lg: 0 20px 40px -10px rgba(0,0,0,0.6);
+}
+
+[data-theme="dark"] .site-header {
+  background: rgba(11, 15, 25, 0.88);
+  border-color: #1e293b;
+}
+
+[data-theme="dark"] .panel-card,
+[data-theme="dark"] .setup-guide-card,
+[data-theme="dark"] .feature-card,
+[data-theme="dark"] .edition-card,
+[data-theme="dark"] .trust-box,
+[data-theme="dark"] .faq-item,
+[data-theme="dark"] .safety-tab-btn,
+[data-theme="dark"] .safety-step-card,
+[data-theme="dark"] .cta-box {
+  background: #111827;
+  border-color: #1f2937;
+  color: #f8fafc;
+}
+
+[data-theme="dark"] .safety-tab-btn.active {
+  background: #38bdf8;
+  color: #0b0f19;
+  border-color: #38bdf8;
+}
+
+[data-theme="dark"] .nav-download {
+  background: #38bdf8;
+  color: #0b0f19 !important;
+}
+
+[data-theme="dark"] .nav-download:hover {
+  background: #0ea5e9;
+}
+
+[data-theme="dark"] .site-footer {
+  background: #060911;
+  border-color: #1e293b;
+}
+
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -149,6 +209,48 @@ svg {
   color: var(--ink);
 }
 
+.nav-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.theme-toggle-btn:hover {
+  background: var(--blue-pale);
+  color: var(--blue);
+  border-color: var(--blue);
+}
+
+.theme-toggle-btn .sun-icon {
+  display: none;
+}
+
+.theme-toggle-btn .moon-icon {
+  display: block;
+}
+
+[data-theme="dark"] .theme-toggle-btn .sun-icon {
+  display: block;
+}
+
+[data-theme="dark"] .theme-toggle-btn .moon-icon {
+  display: none;
+}
+
 .nav-download {
   background: var(--ink);
   color: #fff !important;
@@ -162,6 +264,7 @@ svg {
   background: var(--ink-secondary);
   transform: translateY(-1px);
 }
+
 
 .menu-toggle {
   display: none;
