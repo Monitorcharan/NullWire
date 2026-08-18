@@ -1661,89 +1661,169 @@ svg {
   color: var(--blue);
 }
 
-/* Responsive Breakpoints */
-@media (max-width: 960px) {
+/* ==========================================================================
+   RESPONSIVE DESIGN SYSTEM (ALL DEVICES & SCREEN SIZES)
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+  .hero-grid {
+    grid-template-columns: 1fr 0.9fr;
+    gap: 32px;
+  }
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .logo-floating-wrapper {
+    width: 200px;
+    height: 200px;
+  }
+}
+
+@media (max-width: 860px) {
   .hero-grid {
     grid-template-columns: 1fr;
-    gap: 44px;
+    text-align: center;
+    gap: 36px;
+  }
+  .hero-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .hero-badge {
+    margin: 0 auto 16px;
+  }
+  .hero-subtext {
+    justify-content: center;
+  }
+  .hero-logo-container {
+    order: -1;
+    padding: 10px 0;
+  }
+  .logo-floating-wrapper {
+    width: 160px;
+    height: 160px;
+    margin: 0 auto;
+  }
+  .editions-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
   }
   .setup-guide-grid {
     grid-template-columns: 1fr;
   }
-  .features-grid, .trust-cards-row, .simulation-grid, .android-steps-grid {
-    grid-template-columns: 1fr;
-  }
-  .editions-grid {
+  .trust-cards-row, .android-steps-grid {
     grid-template-columns: 1fr;
   }
   .cta-box {
     flex-direction: column;
-    align-items: flex-start;
-    padding: 36px 28px;
+    text-align: center;
+    align-items: center;
+    padding: 36px 24px;
+    gap: 24px;
   }
   .cta-buttons {
     width: 100%;
+    max-width: 320px;
   }
 }
 
-@media (max-width: 640px) {
-  .container, .narrow-container {
-    width: min(100% - 32px, 1120px);
-  }
-  .site-header {
-    height: 60px;
-  }
-  .nav-wrap {
-    height: 60px;
-  }
+@media (max-width: 768px) {
   .menu-toggle {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--soft);
+    border: 1px solid var(--line);
+    cursor: pointer;
   }
   .nav-links {
     display: none;
     position: absolute;
-    top: 60px;
-    left: 0;
-    right: 0;
-    padding: 16px 20px;
+    top: 70px;
+    left: 16px;
+    right: 16px;
+    padding: 20px;
     background: var(--surface);
-    border-bottom: 1px solid var(--line);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow-lg);
     flex-direction: column;
     align-items: stretch;
-    gap: 8px;
+    gap: 6px;
+    z-index: 1000;
   }
   .nav-links.open {
     display: flex;
+    animation: slideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .nav-links a {
-    padding: 8px 0;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  .nav-links a:hover {
+    background: var(--soft);
   }
   .nav-download {
     text-align: center;
-    margin-top: 4px;
+    margin-top: 8px;
+    padding: 12px !important;
+  }
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+  .safety-tab-menu {
+    gap: 6px;
+  }
+  .safety-tab-btn {
+    font-size: 0.82rem;
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .container, .narrow-container {
+    width: calc(100% - 24px);
+    padding: 0;
   }
   .hero {
-    padding: 48px 0 40px;
+    padding: 32px 0 24px;
   }
   .hero h1 {
-    font-size: 2.3rem;
+    font-size: clamp(1.75rem, 7vw, 2.1rem);
+  }
+  .hero-text {
+    font-size: 0.92rem;
   }
   .hero-btns {
+    width: 100%;
     flex-direction: column;
-    align-items: stretch;
   }
-  .features-grid, .trust-cards-row {
-    grid-template-columns: 1fr;
+  .hero-btns .button {
+    width: 100%;
+    justify-content: center;
   }
-  .console-visuals {
-    grid-template-columns: 1fr;
-  }
-  .features-pill-row {
+  .hero-subtext {
     flex-direction: column;
+    gap: 6px;
+  }
+  .hero-subtext .sep {
+    display: none;
+  }
+  .logo-floating-wrapper {
+    width: 130px;
+    height: 130px;
   }
   .panel-card {
     padding: 20px 16px;
+  }
+  .edition-card {
+    padding: 24px 20px;
   }
   .safety-tab-btn {
     width: 100%;
@@ -1751,7 +1831,20 @@ svg {
   }
   .footer-wrap {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+    align-items: center;
+    text-align: center;
+    gap: 16px;
   }
 }
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
