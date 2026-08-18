@@ -21,8 +21,8 @@
 }
 
 [data-theme="dark"] {
-  --ink: #f8fafc;
-  --ink-secondary: #cbd5e1;
+  --ink: #ffffff;
+  --ink-secondary: #e2e8f0;
   --muted: #94a3b8;
   --line: #1e293b;
   --surface: #0f172a;
@@ -74,11 +74,53 @@
   box-shadow: 0 0 20px rgba(2, 132, 199, 0.15);
 }
 
+[data-theme="dark"] .edition-header h3,
+[data-theme="dark"] .feature-item h3,
+[data-theme="dark"] .setup-guide-card h3,
+[data-theme="dark"] .faq-btn,
+[data-theme="dark"] .panel-card h3,
+[data-theme="dark"] .panel-card h4,
+[data-theme="dark"] .trust-box h3,
+[data-theme="dark"] .android-step-box h4 {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .edition-features,
+[data-theme="dark"] .edition-features li {
+  color: #e2e8f0 !important;
+}
+
+[data-theme="dark"] .edition-desc,
+[data-theme="dark"] .feature-item p,
+[data-theme="dark"] .setup-guide-card p,
+[data-theme="dark"] .faq-body,
+[data-theme="dark"] .panel-desc,
+[data-theme="dark"] .trust-box p,
+[data-theme="dark"] .android-step-box p {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .latency-badge {
+  background: #0b0f19 !important;
+  border: 1px solid #1f2937;
+}
+
+[data-theme="dark"] .latency-badge .lbl {
+  color: #94a3b8 !important;
+}
+
 [data-theme="dark"] .guide-subtip,
 [data-theme="dark"] .step-guide-row {
   background: #0b0f19;
   border-color: #1f2937;
   color: #cbd5e1;
+}
+
+[data-theme="dark"] .guide-card-icon,
+[data-theme="dark"] .feature-icon,
+[data-theme="dark"] .guide-badge-num {
+  background: #0c2340 !important;
+  color: #38bdf8 !important;
 }
 
 [data-theme="dark"] .safety-tab-btn.active {
@@ -125,6 +167,7 @@
   background: #060911;
   border-color: #1e293b;
 }
+
 
 
 
@@ -1100,9 +1143,10 @@ svg {
   flex-direction: column;
   gap: 12px;
   margin-bottom: 32px;
-  font-size: 0.9rem;
-  color: #334155;
+  font-size: 0.92rem;
+  color: var(--ink-secondary);
 }
+
 
 .full-width {
   width: 100%;
