@@ -35,7 +35,7 @@
 | :--- | :--- | :--- | :--- |
 | **Windows Installer** | [`NullWire_Setup.exe`](./NullWire_Setup.exe) | **3.1 MB** | 1-Click Windows Setup Wizard (Permanent PC Install) |
 | **Windows Standalone App** | [`NullWireSender.exe`](./NullWireSender.exe) | **886 KB** | Portable C++20 WASAPI MMCSS Real-Time Streamer |
-| **Android Receiver** | [`NullWireReceiver.apk`](./NullWireReceiver.apk) | **13.0 MB** | 100% Native C++ NDK AAudio Direct MMAP DMA App |
+| **Android Receiver** | [`NullWireReceiver.apk`](./NullWireReceiver.apk) | **13.0 MB** | Java UI shell + C++ NDK AAudio engine (Direct MMAP DMA) |
 
 ---
 
