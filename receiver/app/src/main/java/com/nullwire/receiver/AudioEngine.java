@@ -16,4 +16,8 @@ public final class AudioEngine {
     public static native float getPlaybackRms();
     public static native long getPlaybackPacketCount();
     public static native void setWifiAcceleration(boolean enabled);
+    public static native float getBufferedMs();
+    public static native long getTrimmedFrames();
+    public static native long getUnderrunCount();
+    public static native void resetBuffers();
 }

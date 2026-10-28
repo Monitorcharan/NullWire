@@ -332,6 +332,64 @@
                 </LinearLayout>
             </LinearLayout>
 
+            <!-- Auto Reset Card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/card_bg"
+                android:orientation="vertical"
+                android:padding="18dp"
+                android:layout_marginTop="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="AUTO RESET CONNECTION"
+                            android:textColor="@color/color_text_sec"
+                            android:textSize="11sp"
+                            android:letterSpacing="0.08"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvAutoResetStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Resets on delay and every 10 min"
+                            android:textColor="@color/color_text_sec"
+                            android:textSize="12sp"
+                            android:fontFamily="sans-serif-medium"
+                            android:layout_marginTop="2dp" />
+                    </LinearLayout>
+
+                    <androidx.appcompat.widget.SwitchCompat
+                        android:id="@+id/switchAutoReset"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true" />
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/btnResetInterval"
+                    android:layout_width="match_parent"
+                    android:layout_height="46dp"
+                    android:text="⚙ Reset interval: 10 min"
+                    android:textColor="#FFFFFF"
+                    android:backgroundTint="@color/color_card"
+                    android:layout_marginTop="12dp" />
+            </LinearLayout>
+
             <!-- Primary Connection Button -->
             <Button
                 android:id="@+id/btnListen"

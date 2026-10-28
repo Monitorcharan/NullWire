@@ -7,6 +7,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
@@ -70,6 +71,22 @@ public class MainActivity extends AppCompatActivity {
     private static final String CHANNEL_ID = "nullwire_playback_channel";
     private static final short PACKET_MAGIC = 0x574E;
     private static final int PACKET_HEADER_SIZE = 8;
+
+    private static final String PREFS = "nullwire_prefs";
+    private static final String PREF_AUTO_RESET = "auto_reset";
+    private static final String PREF_RESET_MIN = "reset_minutes";
+    private static final int[] RESET_MINUTES = {5, 10, 15, 20, 30, 45, 60};
+    // Queue deeper than this for DELAY_TICKS*50ms means audio is running late.
+    private static final float DELAY_LIMIT_MS = 60f;
+    private static final int DELAY_TICKS = 40;
+
+    private boolean autoResetEnabled = true;
+    private int resetMinutes = 10;
+    private long lastResetAtMs = 0;
+    private int delayTicks = 0;
+    private SwitchCompat switchAutoReset;
+    private TextView tvAutoResetStatus;
+    private Button btnResetInterval;
 
     private volatile boolean isListening = false;
     private volatile boolean isMicStreaming = false;
@@ -152,9 +169,61 @@ public class MainActivity extends AppCompatActivity {
                 tvStats.setText("Packets: 0  ·  DMA Ready  ·  Loss: 0.0%");
             }
             lastPacketCount = packets;
+            checkAutoReset();
             handler.postDelayed(this, 50);
         }
     };
+
+    private void checkAutoReset() {
+        if (!autoResetEnabled || !isConnectedState) {
+            delayTicks = 0;
+            return;
+        }
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (AudioEngine.getBufferedMs() > DELAY_LIMIT_MS) delayTicks++;
+        else delayTicks = 0;
+
+        if (delayTicks >= DELAY_TICKS) {
+            performReset("Audio delay detected");
+        } else if (now - lastResetAtMs >= resetMinutes * 60_000L) {
+            performReset("Scheduled " + resetMinutes + " min refresh");
+        }
+    }
+
+    private void performReset(String reason) {
+        delayTicks = 0;
+        lastResetAtMs = android.os.SystemClock.elapsedRealtime();
+        AudioEngine.resetBuffers();
+        showAppToast("CONNECTION RESET", reason, getColor(R.color.color_accent), 2500);
+    }
+
+    private void updateAutoResetUi() {
+        btnResetInterval.setText("⚙ Reset interval: " + resetMinutes + " min");
+        btnResetInterval.setEnabled(autoResetEnabled);
+        tvAutoResetStatus.setText(autoResetEnabled
+                ? "Resets on delay and every " + resetMinutes + " min"
+                : "Off (engine still trims drift automatically)");
+    }
+
+    private void showResetIntervalDialog() {
+        String[] labels = new String[RESET_MINUTES.length];
+        int checked = 0;
+        for (int i = 0; i < RESET_MINUTES.length; i++) {
+            labels[i] = RESET_MINUTES[i] + " minutes";
+            if (RESET_MINUTES[i] == resetMinutes) checked = i;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Reset connection every")
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    resetMinutes = RESET_MINUTES[which];
+                    getSharedPreferences(PREFS, MODE_PRIVATE).edit().putInt(PREF_RESET_MIN, resetMinutes).apply();
+                    lastResetAtMs = android.os.SystemClock.elapsedRealtime();
+                    updateAutoResetUi();
+                    dialog.dismiss();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
 
     public void showAppToast(String title, String message, int dotColor, long durationMs) {
         runOnUiThread(() -> {
@@ -209,6 +278,22 @@ public class MainActivity extends AppCompatActivity {
         viewToastDot = findViewById(R.id.viewToastDot);
         tvToastTitle = findViewById(R.id.tvToastTitle);
         tvToastMessage = findViewById(R.id.tvToastMessage);
+
+        switchAutoReset = findViewById(R.id.switchAutoReset);
+        tvAutoResetStatus = findViewById(R.id.tvAutoResetStatus);
+        btnResetInterval = findViewById(R.id.btnResetInterval);
+        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        autoResetEnabled = prefs.getBoolean(PREF_AUTO_RESET, true);
+        resetMinutes = prefs.getInt(PREF_RESET_MIN, 10);
+        switchAutoReset.setChecked(autoResetEnabled);
+        updateAutoResetUi();
+        switchAutoReset.setOnCheckedChangeListener((button, isChecked) -> {
+            autoResetEnabled = isChecked;
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(PREF_AUTO_RESET, isChecked).apply();
+            lastResetAtMs = android.os.SystemClock.elapsedRealtime();
+            updateAutoResetUi();
+        });
+        btnResetInterval.setOnClickListener(v -> showResetIntervalDialog());
 
         switchWifiAccel.setChecked(isWifiAccelEnabled);
         switchWifiAccel.setOnCheckedChangeListener((button, isChecked) -> {
@@ -342,6 +427,8 @@ public class MainActivity extends AppCompatActivity {
         if (success) {
             isListening = true;
             isConnectedState = false;
+            lastResetAtMs = android.os.SystemClock.elapsedRealtime();
+            delayTicks = 0;
             btnListen.setText("⏹ Stop Audio Stream");
             btnListen.setBackgroundColor(getColor(R.color.color_red));
             tvStatus.setText("● AAudio Direct MMAP Ready");

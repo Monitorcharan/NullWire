@@ -107,6 +107,13 @@ private:
     float decayR = 0.0f;
     bool isPrimed = false;
     static constexpr size_t TARGET_PREROLL = 768; // ~8ms of absorption
+    // Clock-drift control: the PC and phone clocks never match exactly, so a
+    // free-running queue slowly grows (latency creep). Keep it bounded.
+    static constexpr size_t SOFT_LIMIT = 2304;  // ~24ms: start dropping 1 frame per read
+    static constexpr size_t HARD_LIMIT = 7680;  // ~80ms: resync straight to pre-roll
+    std::atomic<bool> resetRequested{false};
+    std::atomic<uint64_t> trimmedFrames{0};
+    std::atomic<uint64_t> underruns{0};
 
 public:
     void Clear() {
@@ -124,6 +131,11 @@ public:
         if (w >= r) return w - r;
         return RING_BUFFER_SIZE - (r - w);
     }
+
+    // Safe to call from any thread; applied by the consumer on the next Read().
+    void RequestReset() { resetRequested.store(true, std::memory_order_release); }
+    uint64_t TrimmedFrames() const { return trimmedFrames.load(std::memory_order_relaxed); }
+    uint64_t Underruns() const { return underruns.load(std::memory_order_relaxed); }
 
     size_t AvailableWrite() const {
         return (RING_BUFFER_SIZE - 1) - AvailableRead();
@@ -147,6 +159,24 @@ public:
         if (!outData || count == 0) return 0;
         size_t avail = AvailableRead();
 
+        if (resetRequested.exchange(false, std::memory_order_acq_rel)) {
+            readHead.store(writeHead.load(std::memory_order_acquire), std::memory_order_release);
+            decayL = decayR = 0.0f;
+            isPrimed = false;
+            avail = 0;
+        }
+
+        // Latency governor (consumer side, so the SPSC invariant holds).
+        if (isPrimed && avail > SOFT_LIMIT) {
+            size_t drop;
+            if (avail > HARD_LIMIT) drop = avail - TARGET_PREROLL;
+            else drop = 2; // one stereo frame per callback, inaudible
+            size_t r0 = readHead.load(std::memory_order_relaxed);
+            readHead.store((r0 + drop) % RING_BUFFER_SIZE, std::memory_order_release);
+            trimmedFrames.fetch_add(drop / 2, std::memory_order_relaxed);
+            avail -= drop;
+        }
+
         // 1. Initial Pre-roll Check (smooth buffer filling)
         if (!isPrimed) {
             if (avail < TARGET_PREROLL) {
@@ -157,6 +187,7 @@ public:
         }
 
         if (avail == 0) {
+            underruns.fetch_add(1, std::memory_order_relaxed);
             isPrimed = false;
             std::fill_n(outData, count, (int16_t)0);
             return 0;
@@ -470,6 +501,29 @@ Java_com_nullwire_receiver_AudioEngine_getPlaybackRms(JNIEnv* env, jobject thiz)
 JNIEXPORT jlong JNICALL
 Java_com_nullwire_receiver_AudioEngine_getPlaybackPacketCount(JNIEnv* env, jobject thiz) {
     return (jlong)g_NativeEngine.playbackPackets.load(std::memory_order_relaxed);
+}
+
+// Currently queued audio in milliseconds (the latency this engine adds).
+JNIEXPORT jfloat JNICALL
+Java_com_nullwire_receiver_AudioEngine_getBufferedMs(JNIEnv* env, jobject thiz) {
+    size_t samples = g_NativeEngine.ringBuffer.AvailableRead();
+    return (jfloat)(samples / (double)CHANNELS * 1000.0 / SAMPLE_RATE);
+}
+
+JNIEXPORT jlong JNICALL
+Java_com_nullwire_receiver_AudioEngine_getTrimmedFrames(JNIEnv* env, jobject thiz) {
+    return (jlong)g_NativeEngine.ringBuffer.TrimmedFrames();
+}
+
+JNIEXPORT jlong JNICALL
+Java_com_nullwire_receiver_AudioEngine_getUnderrunCount(JNIEnv* env, jobject thiz) {
+    return (jlong)g_NativeEngine.ringBuffer.Underruns();
+}
+
+// Flush queued audio and re-prime without tearing down sockets/streams.
+JNIEXPORT void JNICALL
+Java_com_nullwire_receiver_AudioEngine_resetBuffers(JNIEnv* env, jobject thiz) {
+    g_NativeEngine.ringBuffer.RequestReset();
 }
 
 JNIEXPORT void JNICALL
