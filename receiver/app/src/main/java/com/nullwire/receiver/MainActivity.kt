@@ -46,6 +46,8 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var appearance: AeroAppearance
+
     companion object {
         private const val PERMISSION_REQ_CODE = 3001
         private const val AUDIO_PORT = 50005
@@ -147,12 +149,12 @@ class MainActivity : AppCompatActivity() {
 
                 if (packets > lastPacketCount) {
                     stalePacketTicks = 0
-                    tvStats.text = "Packets: $packets  ·  DMA Latency: <2.67ms  ·  Loss: 0.0%"
+                    tvStats.text = "Packets received: $packets · Stereo PCM"
                     if (!isConnectedState) {
                         isConnectedState = true
                         tvStatus.text = "● Streaming 48kHz Lossless Audio"
-                        tvStatus.setTextColor(getColor(R.color.color_green))
-                        showAppToast("CONNECTED TO PC", "Streaming Lossless 48kHz Audio (<2.67ms DMA)", getColor(R.color.color_green), 3500)
+                        tvStatus.setTextColor(appearance.color(R.color.color_green))
+                        showAppToast("CONNECTED TO PC", "Streaming Lossless 48kHz Audio (<2.67ms DMA)", appearance.color(R.color.color_green), 3500)
                         updateNotification("● Streaming Lossless Audio (DMA Active)", true)
                     }
                 } else if (packets > 0 && isConnectedState) {
@@ -160,12 +162,12 @@ class MainActivity : AppCompatActivity() {
                     if (stalePacketTicks > 50) { // ~2.5 seconds without packets
                         isConnectedState = false
                         tvStatus.text = "⚠️ Connection Lost · Waiting for PC..."
-                        tvStatus.setTextColor(getColor(R.color.color_red))
-                        showAppToast("CONNECTION LOST", "PC audio stream disconnected. Searching...", getColor(R.color.color_red), 4000)
+                        tvStatus.setTextColor(appearance.color(R.color.color_red))
+                        showAppToast("CONNECTION LOST", "PC audio stream disconnected. Searching...", appearance.color(R.color.color_red), 4000)
                         updateNotification("⚠️ Connection Lost · Waiting for PC...", false)
                     }
                 } else {
-                    tvStats.text = "Packets: 0  ·  DMA Ready  ·  Loss: 0.0%"
+                    tvStats.text = "Waiting for audio packets"
                 }
                 lastPacketCount = packets
                 handler.postDelayed(this, 50)
@@ -175,6 +177,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        appearance = AeroAppearance(this)
         setContentView(R.layout.activity_main)
 
         createNotificationChannel()
@@ -207,22 +210,19 @@ class MainActivity : AppCompatActivity() {
             if (isChecked) {
                 if (isListening) acquireLocks()
                 tvWifiAccelStatus.text = "⚡ Acceleration Active (Low-Latency Lock & Nice -19)"
-                tvWifiAccelStatus.setTextColor(getColor(R.color.color_green))
-                showAppToast("⚡ WI-FI FASTPATH ACTIVE", "Low-Latency Wi-Fi Lock & High Priority Active", getColor(R.color.color_green), 3000)
+                tvWifiAccelStatus.setTextColor(appearance.color(R.color.color_green))
+                showAppToast("⚡ WI-FI FASTPATH ACTIVE", "Low-Latency Wi-Fi Lock & High Priority Active", appearance.color(R.color.color_green), 3000)
             } else {
                 releaseLocks()
                 tvWifiAccelStatus.text = "⚪ Standard Wi-Fi Mode (Battery Saver)"
-                tvWifiAccelStatus.setTextColor(getColor(R.color.color_text_sec))
-                showAppToast("⚪ STANDARD WI-FI MODE", "Battery Saver Mode Active", getColor(R.color.color_text_sec), 3000)
+                tvWifiAccelStatus.setTextColor(appearance.color(R.color.color_text_sec))
+                showAppToast("⚪ STANDARD WI-FI MODE", "Battery Saver Mode Active", appearance.color(R.color.color_text_sec), 3000)
             }
         }
 
-        ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { view, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val displayCutout = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
-            val topPadding = maxOf(systemBars.top, displayCutout.top) + 20
-            val bottomPadding = maxOf(systemBars.bottom, displayCutout.bottom) + 32
-            view.setPadding(view.paddingLeft, topPadding, view.paddingRight, bottomPadding)
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.appRoot)) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
 
@@ -262,9 +262,16 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        appearance.bind(savedInstanceState?.getInt("ui_page", 0) ?: 0)
+
         // Auto-start discovery beacon so PC can find this phone
         startDiscoveryBeacon()
         // NOTE: Audio listening does NOT auto-start. User must press Listen button.
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putInt("ui_page", appearance.selectedPage())
+        super.onSaveInstanceState(outState)
     }
 
     private fun createNotificationChannel() {
@@ -336,10 +343,11 @@ class MainActivity : AppCompatActivity() {
         if (success) {
             isListening = true
             isConnectedState = false
-            btnListen.text = "⏹ Stop Audio Stream"
-            btnListen.setBackgroundColor(getColor(R.color.color_red))
-            tvStatus.text = "● AAudio Direct MMAP Ready"
-            tvStatus.setTextColor(getColor(R.color.color_green))
+            btnListen.text = "Stop listening"
+            btnListen.backgroundTintList = android.content.res.ColorStateList.valueOf(appearance.color(R.color.color_red))
+            btnListen.setTextColor(appearance.color(R.color.color_on_accent))
+            tvStatus.text = "Ready · Waiting for your PC"
+            tvStatus.setTextColor(appearance.color(R.color.color_green))
             handler.post(telemetryRunnable)
             updateNotification("Ready to receive lossless audio on port 50005")
         } else {
@@ -355,10 +363,11 @@ class MainActivity : AppCompatActivity() {
         if (!isMicStreaming) releaseLocks()
         cancelNotification()
 
-        btnListen.text = "▶ Listen (Connect Audio)"
-        btnListen.setBackgroundColor(getColor(R.color.color_accent))
+        btnListen.text = "Start listening"
+        btnListen.backgroundTintList = android.content.res.ColorStateList.valueOf(appearance.color(R.color.color_button))
+        btnListen.setTextColor(android.graphics.Color.WHITE)
         tvStatus.text = "Ready to receive audio"
-        tvStatus.setTextColor(getColor(R.color.color_text_sec))
+        tvStatus.setTextColor(appearance.color(R.color.color_text_sec))
         pbLevelMeter.progress = 0
         tvStats.text = "Packets: 0  ·  DMA Idle"
         Toast.makeText(this, "Audio Stream Stopped", Toast.LENGTH_SHORT).show()
@@ -439,12 +448,12 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        val input = EditText(this)
+        val input = EditText(appearance.dialogContext)
         input.setText(pcTargetIp)
         input.setSingleLine(true)
         input.filters = arrayOf(android.text.InputFilter.LengthFilter(45))
 
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(appearance.dialogContext)
             .setTitle("Target PC IP Address")
             .setMessage("Enter the IPv4 address of your Windows PC on this Wi-Fi:")
             .setView(input)
@@ -567,10 +576,11 @@ class MainActivity : AppCompatActivity() {
             }
             micThread?.start()
 
-            btnMic.text = "⏹ Stop Phone Mic"
-            btnMic.setBackgroundColor(getColor(R.color.color_red))
+            btnMic.text = "Stop microphone"
+            btnMic.backgroundTintList = android.content.res.ColorStateList.valueOf(appearance.color(R.color.color_red))
+            btnMic.setTextColor(appearance.color(R.color.color_on_accent))
             tvMicStatus.text = "● Streaming Mic to PC ($ip:50006)"
-            tvMicStatus.setTextColor(getColor(R.color.color_green))
+            tvMicStatus.setTextColor(appearance.color(R.color.color_green))
             Toast.makeText(this, "🎙 Phone Mic Active -> PC", Toast.LENGTH_SHORT).show()
 
         } catch (e: Exception) {
@@ -607,10 +617,11 @@ class MainActivity : AppCompatActivity() {
         if (!isListening) releaseLocks()
 
         if (::btnMic.isInitialized) {
-            btnMic.text = "🎙 Start Phone Mic (to PC)"
-            btnMic.setBackgroundColor(getColor(R.color.color_card))
+            btnMic.text = "Start microphone"
+            btnMic.backgroundTintList = android.content.res.ColorStateList.valueOf(appearance.color(R.color.color_button))
+            btnMic.setTextColor(android.graphics.Color.WHITE)
             tvMicStatus.text = "Mic: Idle (Stream phone voice to PC)"
-            tvMicStatus.setTextColor(getColor(R.color.color_text))
+            tvMicStatus.setTextColor(appearance.color(R.color.color_text))
         }
     }
 
