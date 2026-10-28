@@ -12,3 +12,6 @@ target_link_libraries(nullwire_native
     ${log-lib}
     ${aaudio-lib}
 )
+
+target_compile_options(nullwire_native PRIVATE -Wall -Wextra)
+target_link_options(nullwire_native PRIVATE -Wl,-z,max-page-size=16384)

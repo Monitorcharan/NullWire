@@ -904,6 +904,14 @@ struct AppState {
     RECT presetPillsRect[4] {};
     RECT ipInputRect {0,0,0,0};
     RECT deviceDropdownRect {0,0,0,0};
+    RECT themeLightRect {0,0,0,0};
+    RECT themeDarkRect {0,0,0,0};
+    RECT navRects[4] {};
+
+    // Aero UI state
+    bool darkMode = true;
+    int page = 0;          // 0 Overview, 1 Sound, 2 Devices, 3 Settings
+    int hoveredNav = -1;
 
     // Hover states
     bool isStreamBtnHovered = false;
@@ -955,6 +963,67 @@ void PostNotification(const std::wstring& title, const std::wstring& message, Co
 }
 
 // -----------------------------------------------------------------------------
+// AERO THEME (light / dark palettes)
+// -----------------------------------------------------------------------------
+struct Theme {
+    Color bg, sidebar, card, cardAlt, border, text, textSec, accent, accentSoft, accentText, red, redSoft, track, onAccent;
+};
+
+static const Theme kLightTheme = {
+    Color(255, 238, 244, 242), Color(255, 247, 251, 250), Color(255, 255, 255, 255), Color(255, 243, 248, 246),
+    Color(255, 220, 231, 227), Color(255, 16, 32, 27),    Color(255, 98, 118, 111),  Color(255, 23, 184, 144),
+    Color(255, 221, 244, 236), Color(255, 14, 138, 106),  Color(255, 214, 69, 69),   Color(255, 252, 227, 227),
+    Color(255, 218, 230, 226), Color(255, 255, 255, 255)
+};
+static const Theme kDarkTheme = {
+    Color(255, 10, 20, 19),    Color(255, 13, 27, 25),    Color(255, 16, 32, 30),    Color(255, 22, 43, 40),
+    Color(255, 31, 55, 51),    Color(255, 232, 244, 240), Color(255, 140, 165, 157), Color(255, 61, 219, 169),
+    Color(255, 23, 65, 58),    Color(255, 61, 219, 169),  Color(255, 242, 109, 109), Color(255, 58, 31, 34),
+    Color(255, 31, 55, 51),    Color(255, 6, 32, 26)
+};
+
+static const Theme& T() { return g_App.darkMode ? kDarkTheme : kLightTheme; }
+
+static Color WithAlpha(Color c, int a) { return Color((BYTE)a, c.GetRed(), c.GetGreen(), c.GetBlue()); }
+
+static bool SystemPrefersLight() {
+    DWORD v = 1, sz = sizeof(v);
+    RegGetValueW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+                 L"AppsUseLightTheme", RRF_RT_REG_DWORD, nullptr, &v, &sz);
+    return v != 0;
+}
+
+static void LoadThemePreference() {
+    DWORD v = 0, sz = sizeof(v);
+    if (RegGetValueW(HKEY_CURRENT_USER, L"Software\\NullWire", L"DarkTheme", RRF_RT_REG_DWORD, nullptr, &v, &sz) == ERROR_SUCCESS) {
+        g_App.darkMode = (v != 0);
+    } else {
+        g_App.darkMode = !SystemPrefersLight();
+    }
+}
+
+static void ApplyTheme(HWND hwnd, bool dark) {
+    g_App.darkMode = dark;
+    BOOL d = dark ? TRUE : FALSE;
+    DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &d, sizeof(d));
+    HKEY key;
+    if (RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\NullWire", 0, nullptr, 0, KEY_SET_VALUE, nullptr, &key, nullptr) == ERROR_SUCCESS) {
+        DWORD v = dark ? 1 : 0;
+        RegSetValueExW(key, L"DarkTheme", 0, REG_DWORD, reinterpret_cast<const BYTE*>(&v), sizeof(v));
+        RegCloseKey(key);
+    }
+    InvalidateRect(hwnd, nullptr, FALSE);
+}
+
+static RectF ToRectF(const RECT& r) {
+    return RectF((REAL)r.left, (REAL)r.top, (REAL)(r.right - r.left), (REAL)(r.bottom - r.top));
+}
+
+static RECT MakeRect(float x, float y, float w, float h) {
+    return { (LONG)x, (LONG)y, (LONG)(x + w), (LONG)(y + h) };
+}
+
+// -----------------------------------------------------------------------------
 // GDI+ DRAWING HELPER UTILITIES
 // -----------------------------------------------------------------------------
 void AddRoundedRectangle(GraphicsPath& path, RectF rect, float radius) {
@@ -969,17 +1038,14 @@ void AddRoundedRectangle(GraphicsPath& path, RectF rect, float radius) {
     path.CloseFigure();
 }
 
-void DrawFluentCard(Graphics& g, RectF rect, float radius = 10.0f, Color bgColor = Color(240, 24, 29, 45), Color borderColor = Color(180, 42, 51, 78)) {
+// Flat Aero surface: fill + hairline border. alt = slightly tinted inset surface.
+void DrawFluentCard(Graphics& g, RectF rect, float radius = 16.0f, bool alt = false, Color borderOverride = Color(0, 0, 0, 0)) {
+    const Theme& t = T();
     GraphicsPath path;
     AddRoundedRectangle(path, rect, radius);
-
-    Color topColor(bgColor.GetAlpha(), bgColor.GetRed() + 4, bgColor.GetGreen() + 4, bgColor.GetBlue() + 8);
-    Color bottomColor(bgColor.GetAlpha(), bgColor.GetRed() - 2, bgColor.GetGreen() - 2, bgColor.GetBlue() - 2);
-
-    LinearGradientBrush cardBrush(rect, topColor, bottomColor, LinearGradientModeVertical);
-    g.FillPath(&cardBrush, &path);
-
-    Pen borderPen(borderColor, 1.0f);
+    SolidBrush fill(alt ? t.cardAlt : t.card);
+    g.FillPath(&fill, &path);
+    Pen borderPen(borderOverride.GetAlpha() ? borderOverride : t.border, 1.0f);
     g.DrawPath(&borderPen, &path);
 }
 
@@ -993,113 +1059,97 @@ void DrawGlowEffect(Graphics& g, RectF rect, Color glowColor, float intensity = 
     }
 }
 
+static void DrawTextAt(Graphics& g, const std::wstring& s, const Font& f, const Brush& b, float x, float y) {
+    g.DrawString(s.c_str(), -1, &f, PointF(x, y), &b);
+}
+
+static void DrawTextIn(Graphics& g, const std::wstring& s, const Font& f, const Brush& b, RectF r,
+                       StringAlignment h = StringAlignmentCenter, StringAlignment v = StringAlignmentCenter) {
+    StringFormat sf;
+    sf.SetAlignment(h);
+    sf.SetLineAlignment(v);
+    sf.SetTrimming(StringTrimmingEllipsisCharacter);
+    sf.SetFormatFlags(StringFormatFlagsNoWrap);
+    g.DrawString(s.c_str(), -1, &f, r, &sf, &b);
+}
+
 // -----------------------------------------------------------------------------
 // AUDIO VISUALIZERS RENDERING MODULE
 // -----------------------------------------------------------------------------
 void DrawVuMeter(Graphics& g, RectF rect, float level, float peak, const std::wstring& channelName) {
+    const Theme& t = T();
     Font font(L"Segoe UI", 9.0f, FontStyleBold, UnitPoint);
-    SolidBrush textBrush(Color(200, 148, 163, 184));
-    StringFormat sf;
-    sf.SetAlignment(StringAlignmentNear);
-    sf.SetLineAlignment(StringAlignmentCenter);
+    SolidBrush textBrush(t.textSec);
 
-    RectF labelRect(rect.X, rect.Y, 20.0f, rect.Height);
-    g.DrawString(channelName.c_str(), -1, &font, labelRect, &sf, &textBrush);
+    DrawTextIn(g, channelName, font, textBrush, RectF(rect.X, rect.Y, 20.0f, rect.Height), StringAlignmentNear);
 
-    RectF trackRect(rect.X + 24.0f, rect.Y + 4.0f, rect.Width - 75.0f, rect.Height - 8.0f);
+    RectF trackRect(rect.X + 24.0f, rect.Y + 6.0f, rect.Width - 24.0f, rect.Height - 12.0f);
     GraphicsPath trackPath;
-    AddRoundedRectangle(trackPath, trackRect, 4.0f);
-    SolidBrush trackBg(Color(255, 15, 20, 32));
+    AddRoundedRectangle(trackPath, trackRect, trackRect.Height / 2.0f);
+    SolidBrush trackBg(t.track);
     g.FillPath(&trackBg, &trackPath);
 
     float fillWidth = (trackRect.Width * std::clamp(level, 0.0f, 1.0f));
-    if (fillWidth > 2.0f) {
+    if (fillWidth > trackRect.Height) {
         RectF fillRect(trackRect.X, trackRect.Y, fillWidth, trackRect.Height);
         GraphicsPath fillPath;
-        AddRoundedRectangle(fillPath, fillRect, 4.0f);
-
-        LinearGradientBrush vuGrad(
-            trackRect,
-            Color(255, 16, 185, 129),
-            Color(255, 0, 210, 255),
-            LinearGradientModeHorizontal
-        );
-
-        Color colors[] = { Color(255, 16, 185, 129), Color(255, 0, 210, 255), Color(255, 245, 158, 11) };
-        REAL positions[] = { 0.0f, 0.75f, 1.0f };
+        AddRoundedRectangle(fillPath, fillRect, trackRect.Height / 2.0f);
+        LinearGradientBrush vuGrad(trackRect, WithAlpha(t.accent, 255), WithAlpha(t.accent, 255), LinearGradientModeHorizontal);
+        Color colors[] = { WithAlpha(t.accent, 150), t.accent, t.accent };
+        REAL positions[] = { 0.0f, 0.8f, 1.0f };
         vuGrad.SetInterpolationColors(colors, positions, 3);
-
         g.FillPath(&vuGrad, &fillPath);
     }
-
-    float peakX = trackRect.X + (trackRect.Width * std::clamp(peak, 0.0f, 1.0f));
-    Pen peakPen(Color(255, 255, 255, 255), 2.0f);
-    g.DrawLine(&peakPen, peakX, trackRect.Y - 1.0f, peakX, trackRect.Y + trackRect.Height + 1.0f);
-
-    float dbVal = -36.0f + level * 36.0f;
-    std::wstringstream ss;
-    ss << std::fixed << std::setprecision(1) << dbVal << L" dB";
-    RectF dbRect(trackRect.X + trackRect.Width + 6.0f, rect.Y, 55.0f, rect.Height);
-    g.DrawString(ss.str().c_str(), -1, &font, dbRect, &sf, &textBrush);
 }
 
+// 7 measured octave bands are smoothly interpolated into thin bars (display only).
 void DrawSpectrum(Graphics& g, RectF rect) {
-    const std::array<std::wstring, 7> bandLabels = { L"60Hz", L"150", L"400", L"1kHz", L"2.5k", L"6k", L"14k" };
-    float barSpacing = 6.0f;
-    float totalSpacing = barSpacing * 6;
-    float barWidth = (rect.Width - totalSpacing) / 7.0f;
+    const Theme& t = T();
+    const std::array<std::wstring, 7> bandLabels = { L"60", L"150", L"400", L"1k", L"2.5k", L"6k", L"14k" };
+    const float labelH = 18.0f;
+    const float plotH = rect.Height - labelH;
+    const int bars = 56;
+    const float slot = rect.Width / bars;
+    const float barW = slot * 0.55f;
 
-    Font labelFont(L"Segoe UI", 8.0f, FontStyleRegular, UnitPoint);
-    SolidBrush textBrush(Color(180, 100, 116, 139));
-    StringFormat sfCenter;
-    sfCenter.SetAlignment(StringAlignmentCenter);
-    sfCenter.SetLineAlignment(StringAlignmentNear);
+    Pen gridPen(WithAlpha(t.border, 160), 1.0f);
+    for (int i = 0; i < 4; ++i) {
+        float y = rect.Y + plotH * i / 3.0f;
+        g.DrawLine(&gridPen, rect.X, y, rect.X + rect.Width, y);
+    }
 
-    for (size_t i = 0; i < 7; ++i) {
-        float x = rect.X + i * (barWidth + barSpacing);
-        float maxHeight = rect.Height - 20.0f;
-        float h = maxHeight * std::clamp(g_App.spectrumBands[i], 0.05f, 1.0f);
-        float y = rect.Y + maxHeight - h;
+    LinearGradientBrush barBrush(RectF(rect.X, rect.Y, rect.Width, plotH), t.accent, WithAlpha(t.accent, 90), LinearGradientModeVertical);
+    for (int i = 0; i < bars; ++i) {
+        float pos = (i + 0.5f) / bars * 6.0f; // 0..6 across the 7 bands
+        int i0 = std::clamp((int)pos, 0, 5);
+        float f = pos - i0;
+        f = (1.0f - std::cos(f * 3.14159265f)) * 0.5f;
+        float v = g_App.spectrumBands[i0] * (1.0f - f) + g_App.spectrumBands[i0 + 1] * f;
+        v = std::clamp(v, 0.03f, 1.0f);
+        float h = plotH * v;
+        RectF r(rect.X + i * slot + (slot - barW) * 0.5f, rect.Y + plotH - h, barW, h);
+        GraphicsPath p;
+        AddRoundedRectangle(p, r, barW * 0.5f);
+        g.FillPath(&barBrush, &p);
+    }
 
-        RectF slotRect(x, rect.Y, barWidth, maxHeight);
-        GraphicsPath slotPath;
-        AddRoundedRectangle(slotPath, slotRect, 3.0f);
-        SolidBrush slotBg(Color(255, 15, 20, 30));
-        g.FillPath(&slotBg, &slotPath);
-
-        RectF barRect(x, y, barWidth, h);
-        GraphicsPath barPath;
-        AddRoundedRectangle(barPath, barRect, 3.0f);
-
-        LinearGradientBrush barBrush(
-            slotRect,
-            Color(255, 168, 85, 247),
-            Color(255, 0, 210, 255),
-            LinearGradientModeVertical
-        );
-        g.FillPath(&barBrush, &barPath);
-
-        float peakY = rect.Y + maxHeight - (maxHeight * std::clamp(g_App.spectrumPeaks[i], 0.05f, 1.0f));
-        Pen peakPen(Color(255, 255, 255, 255), 1.5f);
-        g.DrawLine(&peakPen, x, peakY, x + barWidth, peakY);
-
-        RectF textRect(x - 5.0f, rect.Y + maxHeight + 4.0f, barWidth + 10.0f, 16.0f);
-        g.DrawString(bandLabels[i].c_str(), -1, &labelFont, textRect, &sfCenter, &textBrush);
+    Font labelFont(L"Segoe UI", 7.5f, FontStyleRegular, UnitPoint);
+    SolidBrush textBrush(t.textSec);
+    for (int i = 0; i < 7; ++i) {
+        float cx = rect.X + (i / 6.0f) * (rect.Width - slot) + slot * 0.5f;
+        DrawTextIn(g, bandLabels[i], labelFont, textBrush, RectF(cx - 22.0f, rect.Y + plotH + 3.0f, 44.0f, 14.0f));
     }
 }
 
 void DrawWaveform(Graphics& g, RectF rect) {
-    Pen gridPen(Color(60, 42, 51, 78), 1.0f);
+    const Theme& t = T();
+    Pen gridPen(WithAlpha(t.border, 170), 1.0f);
     for (int i = 1; i <= 3; ++i) {
         float y = rect.Y + (rect.Height / 4.0f) * i;
         g.DrawLine(&gridPen, rect.X, y, rect.X + rect.Width, y);
     }
-    for (int i = 1; i <= 5; ++i) {
-        float x = rect.X + (rect.Width / 6.0f) * i;
-        g.DrawLine(&gridPen, x, rect.Y, x, rect.Y + rect.Height);
-    }
 
-    Pen centerPen(Color(120, 0, 210, 255), 1.0f);
+    Pen centerPen(WithAlpha(t.accent, 120), 1.0f);
     float centerY = rect.Y + rect.Height * 0.5f;
     g.DrawLine(&centerPen, rect.X, centerY, rect.X + rect.Width, centerY);
 
@@ -1108,17 +1158,15 @@ void DrawWaveform(Graphics& g, RectF rect) {
     std::vector<PointF> points;
     points.reserve(g_App.waveformDisplay.size());
     float stepX = rect.Width / static_cast<float>(g_App.waveformDisplay.size() - 1);
-
     for (size_t i = 0; i < g_App.waveformDisplay.size(); ++i) {
         float x = rect.X + i * stepX;
         float y = centerY - (g_App.waveformDisplay[i] * (rect.Height * 0.42f));
         points.push_back(PointF(x, y));
     }
 
-    Pen glowPen(Color(80, 0, 210, 255), 4.0f);
+    Pen glowPen(WithAlpha(t.accent, 60), 4.0f);
     g.DrawCurve(&glowPen, points.data(), static_cast<INT>(points.size()));
-
-    Pen wavePen(Color(255, 0, 210, 255), 2.0f);
+    Pen wavePen(t.accent, 2.0f);
     g.DrawCurve(&wavePen, points.data(), static_cast<INT>(points.size()));
 }
 
@@ -1126,32 +1174,23 @@ void DrawWaveform(Graphics& g, RectF rect) {
 // INTERACTIVE CONTROLS RENDERING MODULE
 // -----------------------------------------------------------------------------
 void DrawCustomSlider(Graphics& g, SliderControl& slider) {
-    RectF rect(
-        static_cast<REAL>(slider.rect.left),
-        static_cast<REAL>(slider.rect.top),
-        static_cast<REAL>(slider.rect.right - slider.rect.left),
-        static_cast<REAL>(slider.rect.bottom - slider.rect.top)
-    );
+    const Theme& t = T();
+    RectF rect = ToRectF(slider.rect);
+    if (rect.Width <= 0.0f) return;
 
     Font titleFont(L"Segoe UI", 9.5f, FontStyleRegular, UnitPoint);
-    Font valueFont(L"Segoe UI", 9.5f, FontStyleBold, UnitPoint);
-    SolidBrush labelBrush(Color(240, 226, 232, 240));
-    SolidBrush valBrush(slider.accentColor);
-
-    StringFormat sfNear, sfFar;
-    sfNear.SetAlignment(StringAlignmentNear);
-    sfNear.SetLineAlignment(StringAlignmentNear);
-    sfFar.SetAlignment(StringAlignmentFar);
-    sfFar.SetLineAlignment(StringAlignmentNear);
+    Font valueFont(L"Segoe UI", 9.5f, FontStyleRegular, UnitPoint);
+    SolidBrush labelBrush(t.text);
+    SolidBrush valBrush(t.textSec);
 
     RectF headerRect(rect.X, rect.Y, rect.Width, 18.0f);
-    g.DrawString(slider.label.c_str(), -1, &titleFont, headerRect, &sfNear, &labelBrush);
+    DrawTextIn(g, slider.label, titleFont, labelBrush, headerRect, StringAlignmentNear, StringAlignmentNear);
 
     float actualVal = slider.minValue + slider.value * (slider.maxValue - slider.minValue);
     std::wstringstream ss;
     if (actualVal > 0.01f && slider.minValue < 0) ss << L"+";
     ss << std::fixed << std::setprecision(1) << actualVal << L" " << slider.unit;
-    g.DrawString(ss.str().c_str(), -1, &valueFont, headerRect, &sfFar, &valBrush);
+    DrawTextIn(g, ss.str(), valueFont, valBrush, headerRect, StringAlignmentFar, StringAlignmentNear);
 
     float trackY = rect.Y + 24.0f;
     float trackHeight = 6.0f;
@@ -1159,7 +1198,7 @@ void DrawCustomSlider(Graphics& g, SliderControl& slider) {
 
     GraphicsPath trackPath;
     AddRoundedRectangle(trackPath, trackRect, 3.0f);
-    SolidBrush trackBg(Color(255, 15, 20, 32));
+    SolidBrush trackBg(t.track);
     g.FillPath(&trackBg, &trackPath);
 
     float fillWidth = rect.Width * slider.value;
@@ -1167,60 +1206,359 @@ void DrawCustomSlider(Graphics& g, SliderControl& slider) {
         RectF fillRect(rect.X, trackY, fillWidth, trackHeight);
         GraphicsPath fillPath;
         AddRoundedRectangle(fillPath, fillRect, 3.0f);
-        SolidBrush fillBrush(slider.accentColor);
+        SolidBrush fillBrush(t.accent);
         g.FillPath(&fillBrush, &fillPath);
     }
 
-    float thumbRadius = slider.isHovered || slider.isDragging ? 8.0f : 6.5f;
+    float thumbRadius = slider.isHovered || slider.isDragging ? 8.5f : 7.0f;
     float thumbX = rect.X + fillWidth;
     float thumbY = trackY + trackHeight * 0.5f;
-
     RectF thumbRect(thumbX - thumbRadius, thumbY - thumbRadius, thumbRadius * 2.0f, thumbRadius * 2.0f);
-    if (slider.isHovered || slider.isDragging) {
-        DrawGlowEffect(g, thumbRect, slider.accentColor, 6.0f);
-    }
 
     SolidBrush thumbBrush(Color(255, 255, 255, 255));
     g.FillEllipse(&thumbBrush, thumbRect);
-    Pen thumbBorder(slider.accentColor, 2.0f);
+    Pen thumbBorder(t.accent, 2.0f);
     g.DrawEllipse(&thumbBorder, thumbRect);
 }
 
+// primary: accent pill (or soft-red when isActive, i.e. "Disconnect"). Otherwise a quiet outlined pill.
 void DrawModernButton(Graphics& g, RectF rect, const std::wstring& text, bool isPrimary, bool isHovered, bool isActive) {
+    const Theme& t = T();
     GraphicsPath path;
-    AddRoundedRectangle(path, rect, 8.0f);
+    AddRoundedRectangle(path, rect, rect.Height * 0.5f > 14.0f ? 14.0f : rect.Height * 0.5f);
 
+    Font btnFont(L"Segoe UI", 9.5f, FontStyleBold, UnitPoint);
     if (isPrimary) {
-        if (isHovered) {
-            DrawGlowEffect(g, rect, Color(255, 0, 210, 255), 10.0f);
+        Color fill = isActive ? t.redSoft : t.accent;
+        Color fg = isActive ? t.red : t.onAccent;
+        if (isHovered) fill = Color(255, std::min(255, fill.GetRed() + 10), std::min(255, fill.GetGreen() + 10), std::min(255, fill.GetBlue() + 10));
+        SolidBrush b(fill);
+        g.FillPath(&b, &path);
+        if (isActive) {
+            Pen p(WithAlpha(t.red, 90), 1.0f);
+            g.DrawPath(&p, &path);
         }
-        LinearGradientBrush btnBrush(
-            rect,
-            isActive ? Color(255, 239, 68, 68) : (isHovered ? Color(255, 30, 230, 255) : Color(255, 0, 210, 255)),
-            isActive ? Color(255, 185, 28, 28) : (isHovered ? Color(255, 20, 210, 140) : Color(255, 16, 185, 129)),
-            LinearGradientModeHorizontal
-        );
-        g.FillPath(&btnBrush, &path);
-
-        Font btnFont(L"Segoe UI", 11.0f, FontStyleBold, UnitPoint);
-        SolidBrush textBrush(isActive ? Color(255, 255, 255, 255) : Color(255, 10, 14, 22));
-        StringFormat sf;
-        sf.SetAlignment(StringAlignmentCenter);
-        sf.SetLineAlignment(StringAlignmentCenter);
-        g.DrawString(text.c_str(), -1, &btnFont, rect, &sf, &textBrush);
+        SolidBrush textBrush(fg);
+        DrawTextIn(g, text, btnFont, textBrush, rect);
     } else {
-        SolidBrush bgBrush(isHovered ? Color(255, 35, 45, 68) : Color(255, 24, 30, 48));
+        SolidBrush bgBrush(isHovered ? t.accentSoft : t.cardAlt);
         g.FillPath(&bgBrush, &path);
-        Pen borderPen(isHovered ? Color(255, 0, 210, 255) : Color(255, 42, 51, 78), 1.0f);
+        Pen borderPen(isHovered ? t.accent : t.border, 1.0f);
         g.DrawPath(&borderPen, &path);
-
-        Font btnFont(L"Segoe UI", 10.0f, FontStyleRegular, UnitPoint);
-        SolidBrush textBrush(Color(255, 226, 232, 240));
-        StringFormat sf;
-        sf.SetAlignment(StringAlignmentCenter);
-        sf.SetLineAlignment(StringAlignmentCenter);
-        g.DrawString(text.c_str(), -1, &btnFont, rect, &sf, &textBrush);
+        SolidBrush textBrush(t.text);
+        DrawTextIn(g, text, btnFont, textBrush, rect);
     }
+}
+
+static void DrawSwitch(Graphics& g, float x, float y, bool on) {
+    const Theme& t = T();
+    RectF pill(x, y, 36.0f, 20.0f);
+    GraphicsPath path;
+    AddRoundedRectangle(path, pill, 10.0f);
+    SolidBrush bg(on ? t.accent : t.track);
+    g.FillPath(&bg, &path);
+    SolidBrush knob(Color(255, 255, 255, 255));
+    g.FillEllipse(&knob, on ? x + 18.0f : x + 2.0f, y + 2.0f, 16.0f, 16.0f);
+}
+
+// Labelled toggle; the whole rect is the hit-box.
+static void DrawToggle(Graphics& g, RECT hit, const std::wstring& label, bool on, bool hovered) {
+    const Theme& t = T();
+    RectF r = ToRectF(hit);
+    Font f(L"Segoe UI", 9.0f, FontStyleRegular, UnitPoint);
+    SolidBrush text(hovered ? t.text : t.textSec);
+    DrawSwitch(g, r.X, r.Y + (r.Height - 20.0f) * 0.5f, on);
+    DrawTextIn(g, label, f, text, RectF(r.X + 44.0f, r.Y, r.Width - 44.0f, r.Height), StringAlignmentNear);
+}
+
+static void DrawField(Graphics& g, RECT hit, const std::wstring& text, bool placeholder, bool hovered, bool arrow) {
+    const Theme& t = T();
+    RectF r = ToRectF(hit);
+    DrawFluentCard(g, r, 10.0f, true, hovered ? t.accent : Color(0, 0, 0, 0));
+    Font f(L"Segoe UI", 9.5f, FontStyleRegular, UnitPoint);
+    SolidBrush b(placeholder ? t.textSec : t.text);
+    DrawTextIn(g, text, f, b, RectF(r.X + 12.0f, r.Y, r.Width - (arrow ? 34.0f : 20.0f), r.Height), StringAlignmentNear);
+    if (arrow) {
+        Pen p(t.textSec, 1.6f);
+        float cx = r.X + r.Width - 18.0f, cy = r.Y + r.Height * 0.5f;
+        g.DrawLine(&p, cx - 4.0f, cy - 2.0f, cx, cy + 2.0f);
+        g.DrawLine(&p, cx, cy + 2.0f, cx + 4.0f, cy - 2.0f);
+    }
+}
+
+static void DrawWindowsTile(Graphics& g, RectF r) {
+    const Theme& t = T();
+    DrawFluentCard(g, r, 14.0f, true);
+    float s = r.Width * 0.30f, gap = 3.0f;
+    float x0 = r.X + (r.Width - (s * 2 + gap)) * 0.5f, y0 = r.Y + (r.Height - (s * 2 + gap)) * 0.5f;
+    SolidBrush b(Color(255, 30, 144, 255));
+    (void)t;
+    g.FillRectangle(&b, x0, y0, s, s);
+    g.FillRectangle(&b, x0 + s + gap, y0, s, s);
+    g.FillRectangle(&b, x0, y0 + s + gap, s, s);
+    g.FillRectangle(&b, x0 + s + gap, y0 + s + gap, s, s);
+}
+
+static void DrawPhoneTile(Graphics& g, RectF r, bool active) {
+    const Theme& t = T();
+    DrawFluentCard(g, r, 14.0f, true);
+    float w = r.Width * 0.34f, h = r.Height * 0.62f;
+    RectF body(r.X + (r.Width - w) * 0.5f, r.Y + (r.Height - h) * 0.5f, w, h);
+    GraphicsPath p;
+    AddRoundedRectangle(p, body, 4.0f);
+    Pen pen(active ? t.accent : t.textSec, 1.8f);
+    g.DrawPath(&pen, &p);
+    SolidBrush dot(active ? t.accent : t.textSec);
+    g.FillEllipse(&dot, body.X + body.Width * 0.5f - 1.5f, body.Y + body.Height - 6.0f, 3.0f, 3.0f);
+}
+
+static void DrawWifiGlyph(Graphics& g, float cx, float cy, bool active) {
+    const Theme& t = T();
+    RectF badge(cx - 20.0f, cy - 20.0f, 40.0f, 40.0f);
+    SolidBrush bg(t.accentSoft);
+    g.FillEllipse(&bg, badge);
+    Pen pen(active ? t.accent : t.textSec, 2.0f);
+    pen.SetStartCap(LineCapRound);
+    pen.SetEndCap(LineCapRound);
+    for (int i = 1; i <= 3; ++i) {
+        float r = 4.5f * i;
+        g.DrawArc(&pen, cx - r, cy + 6.0f - r, r * 2.0f, r * 2.0f, 225.0f, 90.0f);
+    }
+    SolidBrush dot(active ? t.accent : t.textSec);
+    g.FillEllipse(&dot, cx - 1.8f, cy + 4.2f, 3.6f, 3.6f);
+}
+
+static void DrawLinkDots(Graphics& g, float x0, float x1, float y, float skipCx, bool active) {
+    const Theme& t = T();
+    SolidBrush b(active ? t.accent : t.track);
+    for (float x = x0; x < x1; x += 11.0f) {
+        if (std::abs(x - skipCx) < 28.0f) continue;
+        g.FillEllipse(&b, x, y - 1.8f, 3.6f, 3.6f);
+    }
+}
+
+static void DrawMetric(Graphics& g, RectF slot, int glyph, const std::wstring& value, const std::wstring& label) {
+    const Theme& t = T();
+    RectF badge(slot.X, slot.Y + (slot.Height - 38.0f) * 0.5f, 38.0f, 38.0f);
+    SolidBrush bg(t.accentSoft);
+    g.FillEllipse(&bg, badge);
+    Pen pen(t.accent, 2.0f);
+    pen.SetLineJoin(LineJoinRound);
+    float cx = badge.X + 19.0f, cy = badge.Y + 19.0f;
+    if (glyph == 0) { // pulse
+        PointF pts[] = { {cx - 9, cy}, {cx - 4, cy}, {cx - 1, cy - 7}, {cx + 3, cy + 7}, {cx + 6, cy}, {cx + 9, cy} };
+        g.DrawLines(&pen, pts, 6);
+    } else if (glyph == 1) { // bars
+        SolidBrush b(t.accent);
+        g.FillRectangle(&b, cx - 8, cy, 4.0f, 8.0f);
+        g.FillRectangle(&b, cx - 2, cy - 6, 4.0f, 14.0f);
+        g.FillRectangle(&b, cx + 4, cy - 3, 4.0f, 11.0f);
+    } else { // layers
+        PointF d1[] = { {cx, cy - 8}, {cx + 9, cy - 3}, {cx, cy + 2}, {cx - 9, cy - 3} };
+        g.DrawPolygon(&pen, d1, 4);
+        g.DrawLine(&pen, cx - 9.0f, cy + 3.0f, cx, cy + 8.0f);
+        g.DrawLine(&pen, cx, cy + 8.0f, cx + 9.0f, cy + 3.0f);
+    }
+    Font vf(L"Segoe UI", 13.0f, FontStyleBold, UnitPoint);
+    Font lf(L"Segoe UI", 8.5f, FontStyleRegular, UnitPoint);
+    SolidBrush vb(t.text), lb(t.textSec);
+    DrawTextAt(g, value, vf, vb, slot.X + 50.0f, slot.Y + 8.0f);
+    DrawTextAt(g, label, lf, lb, slot.X + 50.0f, slot.Y + 32.0f);
+}
+
+static const wchar_t* kPageNames[4] = { L"Overview", L"Sound", L"Devices", L"Settings" };
+static const wchar_t* kPageGlyphs[4] = { L"\u2302", L"\u266B", L"\u25AF", L"\u2699" };
+
+static void ApplyPreset(int i) {
+    g_App.engine.currentPreset.store(static_cast<AudioPreset>(i));
+    switch (g_App.engine.currentPreset.load()) {
+    case AudioPreset::PureDirect:
+        g_App.subBassSlider.value = 0.50f; g_App.vocalPresenceSlider.value = 0.50f;
+        g_App.trebleAirSlider.value = 0.50f; g_App.surround3DSlider.value = 0.0f; break;
+    case AudioPreset::HiFiStudio:
+        g_App.subBassSlider.value = 0.60f; g_App.vocalPresenceSlider.value = 0.56f;
+        g_App.trebleAirSlider.value = 0.58f; g_App.surround3DSlider.value = 0.40f; break;
+    case AudioPreset::Cinema3D:
+        g_App.subBassSlider.value = 0.75f; g_App.vocalPresenceSlider.value = 0.62f;
+        g_App.trebleAirSlider.value = 0.67f; g_App.surround3DSlider.value = 0.95f; break;
+    case AudioPreset::GamingLowLatency:
+        g_App.subBassSlider.value = 0.56f; g_App.vocalPresenceSlider.value = 0.73f;
+        g_App.trebleAirSlider.value = 0.75f; g_App.surround3DSlider.value = 0.70f; break;
+    }
+    g_App.engine.bassBoostDb.store(g_App.subBassSlider.minValue + g_App.subBassSlider.value * (g_App.subBassSlider.maxValue - g_App.subBassSlider.minValue));
+    g_App.engine.presenceBoostDb.store(g_App.vocalPresenceSlider.minValue + g_App.vocalPresenceSlider.value * (g_App.vocalPresenceSlider.maxValue - g_App.vocalPresenceSlider.minValue));
+    g_App.engine.trebleBoostDb.store(g_App.trebleAirSlider.minValue + g_App.trebleAirSlider.value * (g_App.trebleAirSlider.maxValue - g_App.trebleAirSlider.minValue));
+    g_App.engine.spatialSurroundAmount.store(g_App.surround3DSlider.value);
+    g_App.engine.enableSpatial3D.store(g_App.surround3DSlider.value > 0.01f);
+}
+
+static std::wstring CurrentDeviceName() {
+    std::wstring name = L"Default Windows Audio Endpoint";
+    if (g_App.engine.selectedDeviceIndex >= 0 && g_App.engine.selectedDeviceIndex < (int)g_App.engine.devices.size()) {
+        name = g_App.engine.devices[g_App.engine.selectedDeviceIndex].name;
+    }
+    return name;
+}
+
+static void DrawSoundCard(Graphics& g, RectF card, float sliderStep, bool withPresets) {
+    const Theme& t = T();
+    DrawFluentCard(g, card);
+    Font head(L"Segoe UI", 10.5f, FontStyleBold, UnitPoint);
+    SolidBrush hb(t.text);
+    DrawTextAt(g, L"Sound shaping", head, hb, card.X + 18.0f, card.Y + 14.0f);
+
+    SliderControl* sliders[4] = { &g_App.subBassSlider, &g_App.vocalPresenceSlider, &g_App.trebleAirSlider, &g_App.surround3DSlider };
+    float sy = card.Y + 46.0f;
+    for (int i = 0; i < 4; ++i) {
+        sliders[i]->rect = MakeRect(card.X + 18.0f, sy + sliderStep * i, card.Width - 36.0f, 38.0f);
+        DrawCustomSlider(g, *sliders[i]);
+    }
+
+    if (withPresets) {
+        const wchar_t* labels[4] = { L"Pure", L"Studio", L"Cinema", L"Game" };
+        float py = card.Y + card.Height - 44.0f;
+        float gap = 8.0f;
+        float pw = (card.Width - 36.0f - gap * 3) / 4.0f;
+        for (int i = 0; i < 4; ++i) {
+            float px = card.X + 18.0f + i * (pw + gap);
+            g_App.presetPillsRect[i] = MakeRect(px, py, pw, 30.0f);
+            bool sel = (static_cast<int>(g_App.engine.currentPreset.load()) == i);
+            bool hov = (g_App.hoveredPresetIndex == i);
+            RectF pr(px, py, pw, 30.0f);
+            GraphicsPath pp;
+            AddRoundedRectangle(pp, pr, 12.0f);
+            SolidBrush bg(sel ? t.accentSoft : (hov ? t.cardAlt : t.card));
+            g.FillPath(&bg, &pp);
+            Pen pen(sel ? t.accent : t.border, sel ? 1.5f : 1.0f);
+            g.DrawPath(&pen, &pp);
+            Font pf(L"Segoe UI", 9.0f, sel ? FontStyleBold : FontStyleRegular, UnitPoint);
+            SolidBrush tb(sel ? t.accentText : t.text);
+            DrawTextIn(g, labels[i], pf, tb, pr);
+        }
+    }
+}
+
+static void DrawLiveAudioCard(Graphics& g, RectF card, bool spectrumOnly) {
+    const Theme& t = T();
+    DrawFluentCard(g, card);
+    Font head(L"Segoe UI", 10.5f, FontStyleBold, UnitPoint);
+    Font small(L"Segoe UI", 8.5f, FontStyleRegular, UnitPoint);
+    SolidBrush hb(t.text), sb(t.textSec);
+    DrawTextAt(g, L"Live audio", head, hb, card.X + 18.0f, card.Y + 14.0f);
+    DrawTextIn(g, L"48 kHz \u00B7 Stereo PCM", small, sb, RectF(card.X, card.Y + 14.0f, card.Width - 18.0f, 18.0f), StringAlignmentFar, StringAlignmentNear);
+
+    float y = card.Y + 42.0f;
+    DrawVuMeter(g, RectF(card.X + 18.0f, y, card.Width - 36.0f, 22.0f), g_App.vuLeftLevel, g_App.vuLeftPeak, L"L");
+    DrawVuMeter(g, RectF(card.X + 18.0f, y + 24.0f, card.Width - 36.0f, 22.0f), g_App.vuRightLevel, g_App.vuRightPeak, L"R");
+    y += 58.0f;
+    float remaining = card.Y + card.Height - 14.0f - y;
+    if (spectrumOnly) {
+        DrawSpectrum(g, RectF(card.X + 18.0f, y, card.Width - 36.0f, remaining));
+    } else {
+        float specH = remaining * 0.58f;
+        DrawSpectrum(g, RectF(card.X + 18.0f, y, card.Width - 36.0f, specH));
+        DrawTextAt(g, L"Oscilloscope", small, sb, card.X + 18.0f, y + specH + 8.0f);
+        DrawWaveform(g, RectF(card.X + 18.0f, y + specH + 26.0f, card.Width - 36.0f, remaining - specH - 26.0f));
+    }
+}
+
+static void DrawMetricsBar(Graphics& g, RectF bar) {
+    const Theme& t = T();
+    DrawFluentCard(g, bar);
+    bool live = g_App.engine.isStreaming.load();
+    std::wstringstream lat, jit, buf;
+    if (live) {
+        lat << std::fixed << std::setprecision(2) << g_App.telemetry.latencyMs << L" ms";
+        jit << L"\u00B1" << std::fixed << std::setprecision(2) << g_App.telemetry.jitterMs << L" ms";
+        buf << std::fixed << std::setprecision(1) << g_App.telemetry.bufferHealth << L"%";
+    } else {
+        lat << L"-- ms"; jit << L"-- ms"; buf << L"--";
+    }
+    float w = bar.Width / 3.0f;
+    DrawMetric(g, RectF(bar.X + 20.0f, bar.Y, w - 20.0f, bar.Height), 0, lat.str(), L"Latency");
+    DrawMetric(g, RectF(bar.X + w + 20.0f, bar.Y, w - 20.0f, bar.Height), 1, jit.str(), L"Jitter");
+    DrawMetric(g, RectF(bar.X + 2 * w + 20.0f, bar.Y, w - 20.0f, bar.Height), 2, buf.str(), L"Buffer");
+    Pen sep(t.border, 1.0f);
+    g.DrawLine(&sep, bar.X + w, bar.Y + 14.0f, bar.X + w, bar.Y + bar.Height - 14.0f);
+    g.DrawLine(&sep, bar.X + 2 * w, bar.Y + 14.0f, bar.X + 2 * w, bar.Y + bar.Height - 14.0f);
+}
+
+static void DrawConnectionCard(Graphics& g, RectF card) {
+    const Theme& t = T();
+    bool live = g_App.engine.isStreaming.load();
+    DrawFluentCard(g, card);
+    Font name(L"Segoe UI", 10.5f, FontStyleBold, UnitPoint);
+    Font small(L"Segoe UI", 8.5f, FontStyleRegular, UnitPoint);
+    SolidBrush nb(t.text), sb(t.textSec);
+
+    float ty = card.Y + 16.0f;
+    DrawWindowsTile(g, RectF(card.X + 20.0f, ty, 60.0f, 60.0f));
+    DrawTextAt(g, L"This PC", name, nb, card.X + 94.0f, ty);
+    g_App.deviceDropdownRect = MakeRect(card.X + 94.0f, ty + 24.0f, 190.0f, 34.0f);
+    std::wstring dev = CurrentDeviceName();
+    if (dev.length() > 24) dev = dev.substr(0, 22) + L"...";
+    DrawField(g, g_App.deviceDropdownRect, dev, false, g_App.isDeviceHovered, true);
+
+    float phoneX = card.X + card.Width - 80.0f;
+    DrawPhoneTile(g, RectF(phoneX, ty, 60.0f, 60.0f), live || g_App.isPhoneDiscovered);
+    std::wstring phone = g_App.isPhoneDiscovered ? g_App.targetDeviceName : L"No phone yet";
+    DrawTextIn(g, phone, name, nb, RectF(phoneX - 230.0f, ty, 218.0f, 22.0f), StringAlignmentFar, StringAlignmentNear);
+    g_App.streamButtonRect = MakeRect(phoneX - 138.0f, ty + 26.0f, 126.0f, 32.0f);
+    std::wstring label = live ? L"Disconnect" : L"Connect";
+    DrawModernButton(g, ToRectF(g_App.streamButtonRect), label, true, g_App.isStreamBtnHovered, live);
+
+    float linkL = card.X + 300.0f, linkR = phoneX - 250.0f;
+    if (linkR - linkL > 80.0f) {
+        float cx = (linkL + linkR) * 0.5f, cy = ty + 26.0f;
+        DrawLinkDots(g, linkL, linkR, cy, cx, live);
+        DrawWifiGlyph(g, cx, cy, live);
+        DrawTextIn(g, L"48 kHz \u00B7 Stereo PCM", small, sb, RectF(cx - 80.0f, cy + 24.0f, 160.0f, 16.0f));
+    }
+
+    float by = card.Y + card.Height - 44.0f;
+    g_App.autoConnectRect = MakeRect(card.X + 20.0f, by, 130.0f, 28.0f);
+    DrawToggle(g, g_App.autoConnectRect, L"Auto-connect", g_App.autoConnect, g_App.isAutoConnectHovered);
+    g_App.wifiToggleRect = MakeRect(card.X + 170.0f, by, 120.0f, 28.0f);
+    DrawToggle(g, g_App.wifiToggleRect, L"FastPath", g_App.engine.enableWifiAccel.load(), g_App.isWifiToggleHovered);
+
+    g_App.ipInputRect = MakeRect(card.X + card.Width - 200.0f, by - 3.0f, 180.0f, 34.0f);
+    std::wstring ip = g_App.targetIp.empty() ? (g_App.isIpEditing ? L"|" : L"Phone IP address") : (g_App.targetIp + (g_App.isIpEditing ? L"|" : L""));
+    DrawField(g, g_App.ipInputRect, ip, g_App.targetIp.empty() && !g_App.isIpEditing, g_App.isIpHovered, false);
+}
+
+static void DrawToast(Graphics& g, int width, int height) {
+    if (!g_App.toast.active) return;
+    const Theme& t = T();
+    auto now = std::chrono::steady_clock::now();
+    float elapsed = std::chrono::duration<float>(now - g_App.toast.startTime).count();
+    if (elapsed >= g_App.toast.durationSec) { g_App.toast.active = false; return; }
+
+    float alpha = 1.0f;
+    if (elapsed < 0.25f) alpha = elapsed / 0.25f;
+    else if (elapsed > (g_App.toast.durationSec - 0.45f)) alpha = (g_App.toast.durationSec - elapsed) / 0.45f;
+    alpha = std::clamp(alpha, 0.0f, 1.0f);
+
+    float toastW = 440.0f, toastH = 48.0f;
+    float toastX = 200.0f + (width - 200.0f - toastW) * 0.5f;
+    float toastY = static_cast<float>(height) - toastH - 14.0f + (1.0f - alpha) * 18.0f;
+
+    RectF tRect(toastX, toastY, toastW, toastH);
+    GraphicsPath tPath;
+    AddRoundedRectangle(tPath, tRect, 16.0f);
+    SolidBrush tBg(WithAlpha(t.card, (int)(245 * alpha)));
+    g.FillPath(&tBg, &tPath);
+    Pen tBorder(WithAlpha(t.accent, (int)(200 * alpha)), 1.2f);
+    g.DrawPath(&tBorder, &tPath);
+
+    SolidBrush dotBrush(WithAlpha(t.accent, (int)(255 * alpha)));
+    g.FillEllipse(&dotBrush, toastX + 16.0f, toastY + 19.0f, 10.0f, 10.0f);
+
+    Font tTitleFont(L"Segoe UI", 9.0f, FontStyleBold, UnitPoint);
+    Font tMsgFont(L"Segoe UI", 8.5f, FontStyleRegular, UnitPoint);
+    SolidBrush tText(WithAlpha(t.text, (int)(255 * alpha)));
+    SolidBrush tSec(WithAlpha(t.textSec, (int)(255 * alpha)));
+    DrawTextIn(g, g_App.toast.title, tTitleFont, tText, RectF(toastX + 36.0f, toastY + 6.0f, toastW - 48.0f, 18.0f), StringAlignmentNear);
+    DrawTextIn(g, g_App.toast.message, tMsgFont, tSec, RectF(toastX + 36.0f, toastY + 24.0f, toastW - 48.0f, 18.0f), StringAlignmentNear);
 }
 
 // -----------------------------------------------------------------------------
@@ -1237,292 +1575,146 @@ void RenderFrame(HWND hwnd, HDC hdc) {
     HBITMAP memBitmap = CreateCompatibleBitmap(hdc, width, height);
     HBITMAP oldBitmap = (HBITMAP)SelectObject(memDC, memBitmap);
 
+    // Hit-boxes are rebuilt every frame; controls on hidden pages must not respond.
+    const RECT none = {0, 0, 0, 0};
+    g_App.streamButtonRect = g_App.wifiToggleRect = g_App.autoConnectRect = none;
+    g_App.ipInputRect = g_App.deviceDropdownRect = none;
+    g_App.themeLightRect = g_App.themeDarkRect = none;
+    for (auto& r : g_App.presetPillsRect) r = none;
+    for (auto& r : g_App.navRects) r = none;
+    for (SliderControl* s : { &g_App.subBassSlider, &g_App.vocalPresenceSlider, &g_App.trebleAirSlider, &g_App.surround3DSlider }) s->rect = none;
+
     {
         Graphics g(memDC);
         g.SetSmoothingMode(SmoothingModeAntiAlias);
         g.SetInterpolationMode(InterpolationModeHighQualityBicubic);
         g.SetTextRenderingHint(TextRenderingHintClearTypeGridFit);
 
-        SolidBrush bgBrush(Color(255, 15, 18, 28));
+        const Theme& t = T();
+        const float SW = 200.0f;
+        SolidBrush bgBrush(t.bg);
         g.FillRectangle(&bgBrush, 0, 0, width, height);
 
-        Font titleFont(L"Segoe UI", 15.0f, FontStyleBold, UnitPoint);
-        Font subtitleFont(L"Segoe UI", 9.0f, FontStyleRegular, UnitPoint);
-        Font hostFont(L"Segoe UI", 8.5f, FontStyleBold, UnitPoint);
-        Font targetFont(L"Segoe UI", 8.5f, FontStyleRegular, UnitPoint);
-        SolidBrush whiteBrush(Color(255, 255, 255, 255));
-        SolidBrush slateBrush(Color(255, 148, 163, 184));
-        SolidBrush cyanBrush(Color(255, 0, 210, 255));
-        SolidBrush greenBrush(Color(255, 16, 185, 129));
-        SolidBrush amberBrush(Color(255, 245, 158, 11));
+        // ---- Sidebar ----
+        SolidBrush sideBrush(t.sidebar);
+        g.FillRectangle(&sideBrush, 0.0f, 0.0f, SW, (REAL)height);
+        Pen sideBorder(t.border, 1.0f);
+        g.DrawLine(&sideBorder, SW, 0.0f, SW, (REAL)height);
 
-        // Brand Emblem
-        g.FillEllipse(&cyanBrush, 24.0f, 22.0f, 12.0f, 12.0f);
-        if (g_App.engine.isStreaming.load()) {
-            DrawGlowEffect(g, RectF(22.0f, 20.0f, 16.0f, 16.0f), Color(255, 0, 210, 255), 8.0f);
-        }
+        RectF logo(22.0f, 22.0f, 30.0f, 30.0f);
+        GraphicsPath logoPath;
+        AddRoundedRectangle(logoPath, logo, 9.0f);
+        SolidBrush logoBg(t.accent);
+        g.FillPath(&logoBg, &logoPath);
+        Font logoFont(L"Segoe UI", 12.0f, FontStyleBold, UnitPoint);
+        SolidBrush logoFg(t.onAccent);
+        DrawTextIn(g, L"N", logoFont, logoFg, logo);
+        Font brandFont(L"Segoe UI", 13.0f, FontStyleBold, UnitPoint);
+        SolidBrush textBrush(t.text), secBrush(t.textSec);
+        DrawTextAt(g, L"NullWire", brandFont, textBrush, 62.0f, 25.0f);
 
-        g.DrawString(L"NULLWIRE PRO", -1, &titleFont, PointF(44.0f, 16.0f), &whiteBrush);
-        g.DrawString(L"Lossless Ultra-Low Latency Wi-Fi Link (48kHz Master PCM)", -1, &subtitleFont, PointF(44.0f, 38.0f), &slateBrush);
-
-        // Header Action Stream Button (Far Right)
-        g_App.streamButtonRect = { width - 224, 14, width - 24, 60 };
-        RectF streamBtnF(
-            static_cast<REAL>(g_App.streamButtonRect.left),
-            static_cast<REAL>(g_App.streamButtonRect.top),
-            static_cast<REAL>(g_App.streamButtonRect.right - g_App.streamButtonRect.left),
-            static_cast<REAL>(g_App.streamButtonRect.bottom - g_App.streamButtonRect.top)
-        );
-        std::wstring btnLabel = g_App.engine.isStreaming.load() ? L"DISCONNECT STREAM" : (g_App.isPhoneDiscovered ? L"START LOSSLESS STREAM" : L"START STREAM");
-        DrawModernButton(g, streamBtnF, btnLabel.c_str(), true, g_App.isStreamBtnHovered, g_App.engine.isStreaming.load());
-
-        // Dedicated Host & Mobile Device Identity HUD Box (Between Title and Button)
-        float devCardX = 400.0f;
-        float devCardW = (width - 238.0f) - devCardX;
-        if (devCardW > 160.0f) {
-            RectF devCardRect(devCardX, 14.0f, devCardW, 46.0f);
-            DrawFluentCard(g, devCardRect, 8.0f, Color(255, 18, 23, 36), Color(255, 42, 51, 78));
-
-            // Host Line (Top)
-            SolidBrush dotHost(Color(255, 16, 185, 129));
-            g.FillEllipse(&dotHost, devCardX + 12.0f, 23.0f, 8.0f, 8.0f);
-            std::wstring hostLine = L"HOST (PC): " + g_App.hostPcName + L" (" + g_App.hostIp + L")";
-            g.DrawString(hostLine.c_str(), -1, &hostFont, PointF(devCardX + 26.0f, 20.0f), &whiteBrush);
-
-            // Target Phone Line (Bottom)
-            std::wstring targetLine;
-            SolidBrush* tBrush = &whiteBrush;
-            Color dotColor(255, 245, 158, 11);
-            if (g_App.engine.isStreaming.load()) {
-                targetLine = L"MOBILE: " + g_App.targetDeviceName + L" (" + g_App.targetIp + L") · Active";
-                dotColor = Color(255, 0, 210, 255);
-            } else if (g_App.isPhoneDiscovered) {
-                targetLine = L"MOBILE: " + g_App.targetDeviceName + L" (" + g_App.targetIp + L") · Ready";
-                dotColor = Color(255, 16, 185, 129);
-            } else {
-                targetLine = L"MOBILE: Waiting for mobile beacon...";
-                tBrush = &slateBrush;
-            }
-            SolidBrush dotTarget(dotColor);
-            g.FillEllipse(&dotTarget, devCardX + 12.0f, 39.0f, 8.0f, 8.0f);
-            g.DrawString(targetLine.c_str(), -1, &targetFont, PointF(devCardX + 26.0f, 36.0f), tBrush);
-        }
-
-        // ---------------------------------------------------------------------
-        // TOP ROW: Target Endpoint & Connection Card
-        // ---------------------------------------------------------------------
-        RectF networkCardRect(24.0f, 72.0f, width - 48.0f, 74.0f);
-        DrawFluentCard(g, networkCardRect, 10.0f);
-
-        Font sectionHeaderFont(L"Segoe UI", 9.0f, FontStyleBold, UnitPoint);
-        g.DrawString(L"TARGET RECEIVER & AUDIO ENDPOINT", -1, &sectionHeaderFont, PointF(40.0f, 80.0f), &slateBrush);
-
-        // Device Dropdown Box
-        g_App.deviceDropdownRect = { 40, 100, 310, 134 };
-        RectF devBoxF(40.0f, 100.0f, 270.0f, 34.0f);
-        DrawFluentCard(g, devBoxF, 6.0f, Color(255, 18, 23, 36), g_App.isDeviceHovered ? Color(255, 0, 210, 255) : Color(255, 42, 51, 78));
-        Font devFont(L"Segoe UI", 9.5f, FontStyleRegular, UnitPoint);
-
-        std::wstring displayDev = L"● Default Windows Audio Endpoint";
-        if (g_App.engine.selectedDeviceIndex < (int)g_App.engine.devices.size()) {
-            displayDev = g_App.engine.devices[g_App.engine.selectedDeviceIndex].name;
-        }
-        if (displayDev.length() > 25) displayDev = displayDev.substr(0, 23) + L"...";
-
-        g.DrawString(displayDev.c_str(), -1, &devFont, PointF(50.0f, 107.0f), &whiteBrush);
-        g.DrawString(L"▼", -1, &devFont, PointF(288.0f, 108.0f), &slateBrush);
-
-        // IP Target Field
-        g_App.ipInputRect = { 325, 100, 505, 134 };
-        RectF ipBoxF(325.0f, 100.0f, 180.0f, 34.0f);
-        DrawFluentCard(g, ipBoxF, 6.0f, Color(255, 18, 23, 36), g_App.isIpHovered ? Color(255, 0, 210, 255) : Color(255, 42, 51, 78));
-        std::wstring ipDisplay = g_App.targetIp.empty() ? (g_App.isIpEditing ? L"|" : L"Enter phone IP...") : (g_App.targetIp + (g_App.isIpEditing ? L"|" : L""));
-        SolidBrush ipTextBrush(g_App.targetIp.empty() ? Color(255, 100, 116, 139) : Color(255, 255, 255, 255));
-        g.DrawString(ipDisplay.c_str(), -1, &devFont, PointF(337.0f, 107.0f), &ipTextBrush);
-
-        // Auto-Connect (Instant) Toggle Switch
-        g_App.autoConnectRect = { width - 425, 96, width - 235, 132 };
-        RectF autoConnF(width - 425.0f, 96.0f, 190.0f, 36.0f);
-        DrawFluentCard(g, autoConnF, 8.0f, Color(255, 18, 23, 36), g_App.isAutoConnectHovered ? Color(255, 0, 210, 255) : Color(255, 42, 51, 78));
-        g.DrawString(L"⚡ Auto-Connect", -1, &subtitleFont, PointF(width - 415.0f, 104.0f), &whiteBrush);
-
-        RectF autoPillRect(width - 280.0f, 104.0f, 34.0f, 18.0f);
-        GraphicsPath autoPillPath;
-        AddRoundedRectangle(autoPillPath, autoPillRect, 9.0f);
-        SolidBrush autoPillBg(g_App.autoConnect ? Color(255, 0, 210, 255) : Color(255, 50, 60, 80));
-        g.FillPath(&autoPillBg, &autoPillPath);
-
-        float autoKnobX = g_App.autoConnect ? (autoPillRect.X + autoPillRect.Width - 16.0f) : (autoPillRect.X + 2.0f);
-        SolidBrush knobBrush(Color(255, 255, 255, 255));
-        g.FillEllipse(&knobBrush, autoKnobX, autoPillRect.Y + 2.0f, 14.0f, 14.0f);
-
-        // Wi-Fi Acceleration Toggle Switch
-        g_App.wifiToggleRect = { width - 225, 96, width - 44, 132 };
-        RectF wifiToggleF(width - 225.0f, 96.0f, 181.0f, 36.0f);
-        DrawFluentCard(g, wifiToggleF, 8.0f, Color(255, 18, 23, 36), g_App.isWifiToggleHovered ? Color(255, 16, 185, 129) : Color(255, 42, 51, 78));
-        g.DrawString(L"Wi-Fi FastPath", -1, &subtitleFont, PointF(width - 215.0f, 104.0f), &whiteBrush);
-
-        RectF pillRect(width - 86.0f, 104.0f, 34.0f, 18.0f);
-        GraphicsPath pillPath;
-        AddRoundedRectangle(pillPath, pillRect, 9.0f);
-        SolidBrush pillBg(g_App.engine.enableWifiAccel.load() ? Color(255, 16, 185, 129) : Color(255, 50, 60, 80));
-        g.FillPath(&pillBg, &pillPath);
-
-        float knobX = g_App.engine.enableWifiAccel.load() ? (pillRect.X + pillRect.Width - 16.0f) : (pillRect.X + 2.0f);
-        g.FillEllipse(&knobBrush, knobX, pillRect.Y + 2.0f, 14.0f, 14.0f);
-
-        // ---------------------------------------------------------------------
-        // MIDDLE ROW (LEFT): Real-Time Studio Audio Engine (VU + Spectrum + Waveform)
-        // ---------------------------------------------------------------------
-        float midY = 154.0f;
-        float leftCardWidth = (width - 48.0f) * 0.58f;
-        float cardHeight = 310.0f;
-        RectF visualizerCard(24.0f, midY, leftCardWidth, cardHeight);
-        DrawFluentCard(g, visualizerCard, 10.0f);
-
-        g.DrawString(L"REAL-TIME STUDIO AUDIO ENGINE", -1, &sectionHeaderFont, PointF(40.0f, midY + 14.0f), &slateBrush);
-
-        DrawVuMeter(g, RectF(40.0f, midY + 38.0f, leftCardWidth - 32.0f, 22.0f), g_App.vuLeftLevel, g_App.vuLeftPeak, L"L");
-        DrawVuMeter(g, RectF(40.0f, midY + 64.0f, leftCardWidth - 32.0f, 22.0f), g_App.vuRightLevel, g_App.vuRightPeak, L"R");
-
-        g.DrawString(L"OCTAVE SPECTRUM ANALYZER", -1, &sectionHeaderFont, PointF(40.0f, midY + 98.0f), &slateBrush);
-        DrawSpectrum(g, RectF(40.0f, midY + 118.0f, leftCardWidth - 32.0f, 82.0f));
-
-        g.DrawString(L"ZERO-CROSSING PCM OSCILLOSCOPE", -1, &sectionHeaderFont, PointF(40.0f, midY + 214.0f), &slateBrush);
-        DrawWaveform(g, RectF(40.0f, midY + 234.0f, leftCardWidth - 32.0f, 58.0f));
-
-        // ---------------------------------------------------------------------
-        // MIDDLE ROW (RIGHT): Acoustic DSP & Equalizer Suite
-        // ---------------------------------------------------------------------
-        float rightCardX = 24.0f + leftCardWidth + 16.0f;
-        float rightCardWidth = width - rightCardX - 24.0f;
-        RectF dspCard(rightCardX, midY, rightCardWidth, cardHeight);
-        DrawFluentCard(g, dspCard, 10.0f);
-
-        g.DrawString(L"ACOUSTIC DSP & EQUALIZER SUITE", -1, &sectionHeaderFont, PointF(rightCardX + 16.0f, midY + 14.0f), &slateBrush);
-
-        float sliderStartY = midY + 42.0f;
-        float sliderStep = 50.0f;
-
-        g_App.subBassSlider.rect = { static_cast<LONG>(rightCardX + 16.0f), static_cast<LONG>(sliderStartY), static_cast<LONG>(rightCardX + rightCardWidth - 16.0f), static_cast<LONG>(sliderStartY + 38.0f) };
-        DrawCustomSlider(g, g_App.subBassSlider);
-
-        g_App.vocalPresenceSlider.rect = { static_cast<LONG>(rightCardX + 16.0f), static_cast<LONG>(sliderStartY + sliderStep), static_cast<LONG>(rightCardX + rightCardWidth - 16.0f), static_cast<LONG>(sliderStartY + sliderStep + 38.0f) };
-        DrawCustomSlider(g, g_App.vocalPresenceSlider);
-
-        g_App.trebleAirSlider.rect = { static_cast<LONG>(rightCardX + 16.0f), static_cast<LONG>(sliderStartY + sliderStep * 2), static_cast<LONG>(rightCardX + rightCardWidth - 16.0f), static_cast<LONG>(sliderStartY + sliderStep * 2 + 38.0f) };
-        DrawCustomSlider(g, g_App.trebleAirSlider);
-
-        g_App.surround3DSlider.rect = { static_cast<LONG>(rightCardX + 16.0f), static_cast<LONG>(sliderStartY + sliderStep * 3), static_cast<LONG>(rightCardX + rightCardWidth - 16.0f), static_cast<LONG>(sliderStartY + sliderStep * 3 + 38.0f) };
-        DrawCustomSlider(g, g_App.surround3DSlider);
-
-        // Scenario Preset Pills
-        g.DrawString(L"SCENARIO PRESETS", -1, &sectionHeaderFont, PointF(rightCardX + 16.0f, midY + 248.0f), &slateBrush);
-        const std::array<std::wstring, 4> presetLabels = { L"Pure Direct", L"Hi-Fi Studio", L"Cinema 3D", L"Gaming Low-Lat" };
-        float pillW = (rightCardWidth - 32.0f - 18.0f) / 4.0f;
+        Font navFont(L"Segoe UI", 10.0f, FontStyleRegular, UnitPoint);
+        Font navFontSel(L"Segoe UI", 10.0f, FontStyleBold, UnitPoint);
+        Font glyphFont(L"Segoe UI Symbol", 11.0f, FontStyleRegular, UnitPoint);
         for (int i = 0; i < 4; ++i) {
-            float px = rightCardX + 16.0f + i * (pillW + 6.0f);
-            float py = midY + 268.0f;
-            g_App.presetPillsRect[i] = { static_cast<LONG>(px), static_cast<LONG>(py), static_cast<LONG>(px + pillW), static_cast<LONG>(py + 26.0f) };
-
-            bool isSelected = (static_cast<int>(g_App.engine.currentPreset.load()) == i);
-            bool isHovered = (g_App.hoveredPresetIndex == i);
-
-            RectF pRect(px, py, pillW, 26.0f);
-            GraphicsPath pPath;
-            AddRoundedRectangle(pPath, pRect, 6.0f);
-
-            SolidBrush pBg(isSelected ? Color(255, 0, 210, 255) : (isHovered ? Color(255, 40, 50, 75) : Color(255, 20, 26, 40)));
-            g.FillPath(&pBg, &pPath);
-
-            SolidBrush pText(isSelected ? Color(255, 10, 14, 22) : Color(255, 226, 232, 240));
-            Font pillFont(L"Segoe UI", 8.5f, isSelected ? FontStyleBold : FontStyleRegular, UnitPoint);
-            StringFormat sfCenter;
-            sfCenter.SetAlignment(StringAlignmentCenter);
-            sfCenter.SetLineAlignment(StringAlignmentCenter);
-            g.DrawString(presetLabels[i].c_str(), -1, &pillFont, pRect, &sfCenter, &pText);
-        }
-
-        // ---------------------------------------------------------------------
-        // BOTTOM ROW: Telemetry HUD & Status Bar
-        // ---------------------------------------------------------------------
-        float botY = midY + cardHeight + 16.0f;
-        RectF hudRect(24.0f, botY, width - 48.0f, 64.0f);
-        DrawFluentCard(g, hudRect, 8.0f);
-
-        auto drawMetric = [&](float x, const std::wstring& label, const std::wstring& val, Color valColor) {
-            g.DrawString(label.c_str(), -1, &subtitleFont, PointF(x, botY + 12.0f), &slateBrush);
-            Font valFont(L"Segoe UI", 12.5f, FontStyleBold, UnitPoint);
-            SolidBrush vBrush(valColor);
-            g.DrawString(val.c_str(), -1, &valFont, PointF(x, botY + 28.0f), &vBrush);
-        };
-
-        float metricStep = (width - 48.0f) / 5.0f;
-
-        std::wstringstream latStr; latStr << std::fixed << std::setprecision(2) << g_App.telemetry.latencyMs << L" ms";
-        drawMetric(40.0f, L"ROUNDTRIP LATENCY", latStr.str(), Color(255, 16, 185, 129));
-
-        std::wstringstream jitStr; jitStr << L"±" << std::fixed << std::setprecision(2) << g_App.telemetry.jitterMs << L" ms";
-        drawMetric(40.0f + metricStep, L"NETWORK JITTER", jitStr.str(), Color(255, 0, 210, 255));
-
-        drawMetric(40.0f + metricStep * 2, L"LOSSLESS BITRATE", L"1,536 kbps (PCM)", Color(255, 168, 85, 247));
-
-        std::wstringstream pktStr; pktStr << g_App.engine.sendPacketCount.load() << L" pkts";
-        drawMetric(40.0f + metricStep * 3, L"PACKETS TRANSMITTED", pktStr.str(), Color(255, 245, 158, 11));
-
-        std::wstringstream bufStr; bufStr << std::fixed << std::setprecision(1) << g_App.telemetry.bufferHealth << L"%";
-        drawMetric(40.0f + metricStep * 4, L"RING BUFFER HEALTH", bufStr.str(), Color(255, 16, 185, 129));
-
-        // ---------------------------------------------------------------------
-        // IN-APP FLOATING TOAST NOTIFICATION CARD (Bottom-Center Sleek Pill)
-        // ---------------------------------------------------------------------
-        if (g_App.toast.active) {
-            auto now = std::chrono::steady_clock::now();
-            float elapsed = std::chrono::duration<float>(now - g_App.toast.startTime).count();
-            if (elapsed >= g_App.toast.durationSec) {
-                g_App.toast.active = false;
-            } else {
-                float alpha = 1.0f;
-                if (elapsed < 0.25f) {
-                    alpha = elapsed / 0.25f;
-                } else if (elapsed > (g_App.toast.durationSec - 0.45f)) {
-                    alpha = (g_App.toast.durationSec - elapsed) / 0.45f;
-                }
-                alpha = std::clamp(alpha, 0.0f, 1.0f);
-
-                float toastW = 440.0f;
-                float toastH = 44.0f;
-                float toastX = (width - toastW) * 0.5f;
-                float toastY = static_cast<float>(height) - toastH - 14.0f + (1.0f - alpha) * 18.0f;
-
-                RectF tRect(toastX, toastY, toastW, toastH);
-                GraphicsPath tPath;
-                AddRoundedRectangle(tPath, tRect, 10.0f);
-
-                BYTE bgAlpha = static_cast<BYTE>(245 * alpha);
-                SolidBrush tBg(Color(bgAlpha, 18, 23, 36));
-                g.FillPath(&tBg, &tPath);
-
-                BYTE bAlpha = static_cast<BYTE>(230 * alpha);
-                Pen tBorder(Color(bAlpha, g_App.toast.accentColor.GetRed(), g_App.toast.accentColor.GetGreen(), g_App.toast.accentColor.GetBlue()), 1.5f);
-                g.DrawPath(&tBorder, &tPath);
-
-                DrawGlowEffect(g, tRect, g_App.toast.accentColor, 5.0f * alpha);
-
-                // Accent dot
-                SolidBrush dotBrush(Color(static_cast<BYTE>(255 * alpha), g_App.toast.accentColor.GetRed(), g_App.toast.accentColor.GetGreen(), g_App.toast.accentColor.GetBlue()));
-                g.FillEllipse(&dotBrush, toastX + 16.0f, toastY + 17.0f, 10.0f, 10.0f);
-
-                // Title and Message
-                Font tTitleFont(L"Segoe UI", 9.0f, FontStyleBold, UnitPoint);
-                Font tMsgFont(L"Segoe UI", 8.5f, FontStyleRegular, UnitPoint);
-                SolidBrush tWhite(Color(static_cast<BYTE>(255 * alpha), 255, 255, 255));
-                SolidBrush tSlate(Color(static_cast<BYTE>(210 * alpha), 148, 163, 184));
-
-                g.DrawString(g_App.toast.title.c_str(), -1, &tTitleFont, PointF(toastX + 34.0f, toastY + 7.0f), &tWhite);
-                g.DrawString(g_App.toast.message.c_str(), -1, &tMsgFont, PointF(toastX + 34.0f, toastY + 22.0f), &tSlate);
+            float y = 84.0f + i * 46.0f;
+            g_App.navRects[i] = MakeRect(14.0f, y, SW - 28.0f, 38.0f);
+            RectF nr = ToRectF(g_App.navRects[i]);
+            bool sel = (g_App.page == i);
+            if (sel || g_App.hoveredNav == i) {
+                GraphicsPath np;
+                AddRoundedRectangle(np, nr, 14.0f);
+                SolidBrush nb(sel ? t.accentSoft : t.cardAlt);
+                g.FillPath(&nb, &np);
             }
+            SolidBrush fg(sel ? t.accentText : t.textSec);
+            DrawTextIn(g, kPageGlyphs[i], glyphFont, fg, RectF(nr.X + 10.0f, nr.Y, 26.0f, nr.Height));
+            DrawTextIn(g, kPageNames[i], sel ? navFontSel : navFont, fg, RectF(nr.X + 44.0f, nr.Y, nr.Width - 50.0f, nr.Height), StringAlignmentNear);
         }
+
+        // ---- Header ----
+        const float cx = SW + 28.0f;
+        const float cw = width - cx - 28.0f;
+        Font titleFont(L"Segoe UI", 18.0f, FontStyleBold, UnitPoint);
+        std::wstring title = g_App.page == 0 ? L"Your sound. Everywhere." : kPageNames[g_App.page];
+        DrawTextAt(g, title, titleFont, textBrush, cx, 18.0f);
+
+        bool live = g_App.engine.isStreaming.load();
+        SolidBrush liveDot(live ? t.accent : t.textSec);
+        g.FillEllipse(&liveDot, cx, 53.0f, 8.0f, 8.0f);
+        Font liveFont(L"Segoe UI", 9.0f, FontStyleRegular, UnitPoint);
+        DrawTextAt(g, live ? L"Live" : (g_App.isPhoneDiscovered ? L"Ready" : L"Waiting for phone"), liveFont, secBrush, cx + 14.0f, 48.0f);
+
+        // Theme switch (segmented)
+        RectF seg(cx + cw - 184.0f, 18.0f, 184.0f, 36.0f);
+        GraphicsPath segPath;
+        AddRoundedRectangle(segPath, seg, 18.0f);
+        SolidBrush segBg(t.card);
+        g.FillPath(&segBg, &segPath);
+        Pen segBorder(t.border, 1.0f);
+        g.DrawPath(&segBorder, &segPath);
+        g_App.themeLightRect = MakeRect(seg.X + 3.0f, seg.Y + 3.0f, 88.0f, 30.0f);
+        g_App.themeDarkRect = MakeRect(seg.X + 93.0f, seg.Y + 3.0f, 88.0f, 30.0f);
+        RectF selR = ToRectF(g_App.darkMode ? g_App.themeDarkRect : g_App.themeLightRect);
+        GraphicsPath selPath;
+        AddRoundedRectangle(selPath, selR, 15.0f);
+        SolidBrush selBg(t.accentSoft);
+        g.FillPath(&selBg, &selPath);
+        Pen selBorder(t.accent, 1.2f);
+        g.DrawPath(&selBorder, &selPath);
+        Font segFont(L"Segoe UI", 9.0f, FontStyleRegular, UnitPoint);
+        Font segFontSel(L"Segoe UI", 9.0f, FontStyleBold, UnitPoint);
+        SolidBrush lb(!g_App.darkMode ? t.accentText : t.textSec), db(g_App.darkMode ? t.accentText : t.textSec);
+        DrawTextIn(g, L"\u2600  Light", g_App.darkMode ? segFont : segFontSel, lb, ToRectF(g_App.themeLightRect));
+        DrawTextIn(g, L"\u263E  Dark", g_App.darkMode ? segFontSel : segFont, db, ToRectF(g_App.themeDarkRect));
+
+        // ---- Pages ----
+        const float top = 84.0f;
+        const float bottom = height - 24.0f;
+        if (g_App.page == 0) {
+            DrawConnectionCard(g, RectF(cx, top, cw, 136.0f));
+            float barH = 64.0f;
+            RectF bar(cx, bottom - barH, cw, barH);
+            float rowY = top + 136.0f + 16.0f;
+            float rowH = bar.Y - 16.0f - rowY;
+            float leftW = cw * 0.52f;
+            DrawLiveAudioCard(g, RectF(cx, rowY, leftW, rowH), true);
+            DrawSoundCard(g, RectF(cx + leftW + 16.0f, rowY, cw - leftW - 16.0f, rowH), 40.0f, true);
+            DrawMetricsBar(g, bar);
+        } else if (g_App.page == 1) {
+            float leftW = cw * 0.48f;
+            float h = bottom - top - 80.0f;
+            DrawSoundCard(g, RectF(cx, top, leftW, bottom - top), 64.0f, true);
+            DrawLiveAudioCard(g, RectF(cx + leftW + 16.0f, top, cw - leftW - 16.0f, bottom - top), false);
+            (void)h;
+        } else if (g_App.page == 2) {
+            DrawConnectionCard(g, RectF(cx, top, cw, 136.0f));
+            RectF info(cx, top + 152.0f, cw, 150.0f);
+            DrawFluentCard(g, info);
+            Font head(L"Segoe UI", 10.5f, FontStyleBold, UnitPoint);
+            Font body(L"Segoe UI", 9.5f, FontStyleRegular, UnitPoint);
+            DrawTextAt(g, L"Connection details", head, textBrush, info.X + 18.0f, info.Y + 14.0f);
+            DrawTextAt(g, L"This PC:  " + g_App.hostPcName + L"  (" + g_App.hostIp + L")", body, textBrush, info.X + 18.0f, info.Y + 46.0f);
+            std::wstring ph = g_App.isPhoneDiscovered ? (g_App.targetDeviceName + L"  (" + g_App.targetIp + L")") : L"Open NullWire on your phone \u2014 it is discovered automatically on the same Wi-Fi.";
+            DrawTextAt(g, L"Phone:     " + ph, body, textBrush, info.X + 18.0f, info.Y + 72.0f);
+            DrawTextAt(g, L"Audio endpoint:  " + CurrentDeviceName(), body, secBrush, info.X + 18.0f, info.Y + 98.0f);
+        } else {
+            RectF card(cx, top, cw, 190.0f);
+            DrawFluentCard(g, card);
+            Font head(L"Segoe UI", 10.5f, FontStyleBold, UnitPoint);
+            Font body(L"Segoe UI", 9.0f, FontStyleRegular, UnitPoint);
+            DrawTextAt(g, L"Streaming", head, textBrush, card.X + 18.0f, card.Y + 14.0f);
+            g_App.autoConnectRect = MakeRect(card.X + 18.0f, card.Y + 52.0f, 200.0f, 28.0f);
+            DrawToggle(g, g_App.autoConnectRect, L"Auto-connect when a phone is found", g_App.autoConnect, g_App.isAutoConnectHovered);
+            g_App.autoConnectRect.right = (LONG)(card.X + card.Width - 18.0f);
+            DrawTextAt(g, L"Starts streaming automatically the first time your phone is discovered.", body, secBrush, card.X + 62.0f, card.Y + 82.0f);
+            g_App.wifiToggleRect = MakeRect(card.X + 18.0f, card.Y + 118.0f, 200.0f, 28.0f);
+            DrawToggle(g, g_App.wifiToggleRect, L"Wi-Fi FastPath", g_App.engine.enableWifiAccel.load(), g_App.isWifiToggleHovered);
+            g_App.wifiToggleRect.right = (LONG)(card.X + card.Width - 18.0f);
+            DrawTextAt(g, L"Low-latency socket buffers and 1 ms timer slicing for the lowest delay.", body, secBrush, card.X + 62.0f, card.Y + 148.0f);
+        }
+
+        DrawToast(g, width, height);
     }
 
     BitBlt(hdc, 0, 0, width, height, memDC, 0, 0, SRCCOPY);
@@ -1587,7 +1779,8 @@ void UpdateAudioEngineSim() {
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
     case WM_CREATE: {
-        BOOL dark = TRUE;
+        LoadThemePreference();
+        BOOL dark = g_App.darkMode ? TRUE : FALSE;
         DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
 
         SetTimer(hwnd, TIMER_ANIMATION_ID, ANIMATION_INTERVAL_MS, nullptr);
@@ -1676,6 +1869,10 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         g_App.isAutoConnectHovered = PtInRect(&g_App.autoConnectRect, pt);
         g_App.isIpHovered = PtInRect(&g_App.ipInputRect, pt);
         g_App.isDeviceHovered = PtInRect(&g_App.deviceDropdownRect, pt);
+        g_App.hoveredNav = -1;
+        for (int i = 0; i < 4; ++i) {
+            if (PtInRect(&g_App.navRects[i], pt)) { g_App.hoveredNav = i; break; }
+        }
 
         g_App.hoveredPresetIndex = -1;
         for (int i = 0; i < 4; ++i) {
@@ -1714,6 +1911,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
     case WM_LBUTTONDOWN: {
         POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+
+        for (int i = 0; i < 4; ++i) {
+            if (PtInRect(&g_App.navRects[i], pt)) {
+                g_App.page = i;
+                InvalidateRect(hwnd, nullptr, FALSE);
+                return 0;
+            }
+        }
+        if (PtInRect(&g_App.themeLightRect, pt)) { ApplyTheme(hwnd, false); return 0; }
+        if (PtInRect(&g_App.themeDarkRect, pt)) { ApplyTheme(hwnd, true); return 0; }
 
         // Main Stream Action
         if (PtInRect(&g_App.streamButtonRect, pt)) {
@@ -1793,40 +2000,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
         // Preset Pills Click
         for (int i = 0; i < 4; ++i) {
             if (PtInRect(&g_App.presetPillsRect[i], pt)) {
-                g_App.engine.currentPreset.store(static_cast<AudioPreset>(i));
-
-                switch (g_App.engine.currentPreset.load()) {
-                case AudioPreset::PureDirect:
-                    g_App.subBassSlider.value = 0.50f;
-                    g_App.vocalPresenceSlider.value = 0.50f;
-                    g_App.trebleAirSlider.value = 0.50f;
-                    g_App.surround3DSlider.value = 0.0f;
-                    break;
-                case AudioPreset::HiFiStudio:
-                    g_App.subBassSlider.value = 0.60f;
-                    g_App.vocalPresenceSlider.value = 0.56f;
-                    g_App.trebleAirSlider.value = 0.58f;
-                    g_App.surround3DSlider.value = 0.40f;
-                    break;
-                case AudioPreset::Cinema3D:
-                    g_App.subBassSlider.value = 0.75f;
-                    g_App.vocalPresenceSlider.value = 0.62f;
-                    g_App.trebleAirSlider.value = 0.67f;
-                    g_App.surround3DSlider.value = 0.95f;
-                    break;
-                case AudioPreset::GamingLowLatency:
-                    g_App.subBassSlider.value = 0.56f;
-                    g_App.vocalPresenceSlider.value = 0.73f;
-                    g_App.trebleAirSlider.value = 0.75f;
-                    g_App.surround3DSlider.value = 0.70f;
-                    break;
-                }
-
-                g_App.engine.bassBoostDb.store(g_App.subBassSlider.minValue + g_App.subBassSlider.value * (g_App.subBassSlider.maxValue - g_App.subBassSlider.minValue));
-                g_App.engine.presenceBoostDb.store(g_App.vocalPresenceSlider.minValue + g_App.vocalPresenceSlider.value * (g_App.vocalPresenceSlider.maxValue - g_App.vocalPresenceSlider.minValue));
-                g_App.engine.trebleBoostDb.store(g_App.trebleAirSlider.minValue + g_App.trebleAirSlider.value * (g_App.trebleAirSlider.maxValue - g_App.trebleAirSlider.minValue));
-                g_App.engine.spatialSurroundAmount.store(g_App.surround3DSlider.value);
-                g_App.engine.enableSpatial3D.store(g_App.surround3DSlider.value > 0.01f);
+                ApplyPreset(i);
 
                 InvalidateRect(hwnd, nullptr, FALSE);
                 return 0;

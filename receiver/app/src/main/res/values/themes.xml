@@ -1,7 +1,12 @@
 <resources>
-    <style name="Theme.NullWireNative" parent="Theme.AppCompat.NoActionBar">
+    <style name="Theme.NullWireNative" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/color_accent</item>
+        <item name="colorPrimaryDark">@color/color_bg</item>
+        <item name="colorAccent">@color/color_accent</item>
         <item name="android:statusBarColor">@color/color_bg</item>
         <item name="android:navigationBarColor">@color/color_bg</item>
         <item name="android:windowBackground">@color/color_bg</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
 </resources>
