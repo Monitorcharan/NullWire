@@ -1,7 +1,17 @@
 <resources>
-    <style name="Theme.NullWireNative" parent="Theme.AppCompat.NoActionBar">
+    <style name="Theme.NullWireNative" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorAccent">@color/color_accent</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
         <item name="android:statusBarColor">@color/color_bg</item>
-        <item name="android:navigationBarColor">@color/color_bg</item>
+        <item name="android:navigationBarColor">@color/color_card</item>
         <item name="android:windowBackground">@color/color_bg</item>
+    </style>
+    <style name="AeroDialogLight" parent="Theme.AppCompat.Light.Dialog.Alert">
+        <item name="colorAccent">#007963</item>
+    </style>
+    <style name="AeroDialogDark" parent="Theme.AppCompat.Dialog.Alert">
+        <item name="colorAccent">#67E0C2</item>
     </style>
 </resources>

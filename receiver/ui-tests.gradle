@@ -1,0 +1,9 @@
+// Optional UI-only tests. Production build configuration is unchanged.
+gradle.beforeProject { project ->
+    project.plugins.withId('com.android.application') {
+        project.android.testOptions.unitTests.includeAndroidResources = true
+        project.android.sourceSets.test.java.srcDir(new File(project.rootProject.projectDir, 'ui-tests'))
+        project.dependencies.add('testImplementation', 'junit:junit:4.13.2')
+        project.dependencies.add('testImplementation', 'org.robolectric:robolectric:4.14.1')
+    }
+}

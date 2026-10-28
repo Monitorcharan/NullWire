@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="color_bg">#0F121C</color>
-    <color name="color_card">#181D2D</color>
-    <color name="color_border">#2A334E</color>
-    <color name="color_accent">#00D2FF</color>
-    <color name="color_purple">#A855F7</color>
-    <color name="color_amber">#F59E0B</color>
-    <color name="color_green">#10B981</color>
-    <color name="color_red">#EF4444</color>
-    <color name="color_text">#F8FAFC</color>
-    <color name="color_text_sec">#94A3B8</color>
+    <color name="color_bg">#F2F7F7</color>
+    <color name="color_card">#FFFFFF</color>
+    <color name="color_inset">#EDF4F3</color>
+    <color name="color_border">#DAE6E4</color>
+    <color name="color_accent">#007963</color>
+    <color name="color_green">#007963</color>
+    <color name="color_purple">#6554A4</color>
+    <color name="color_amber">#8A5B16</color>
+    <color name="color_red">#B43041</color>
+    <color name="color_text">#172C2B</color>
+    <color name="color_text_sec">#5B7471</color>
+    <color name="color_soft">#DCF5ED</color>
+    <color name="color_button">#007963</color>
+    <color name="color_on_accent">#FFFFFF</color>
 </resources>
