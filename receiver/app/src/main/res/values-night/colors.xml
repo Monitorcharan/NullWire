@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="color_bg">#0A1413</color>
+    <color name="color_card">#10201E</color>
+    <color name="color_card_alt">#162B28</color>
+    <color name="color_border">#1F3733</color>
+    <color name="color_accent">#3DDBA9</color>
+    <color name="color_accent_soft">#17413A</color>
+    <color name="color_green">#3DDBA9</color>
+    <color name="color_red">#F26D6D</color>
+    <color name="color_red_soft">#3A1F22</color>
+    <color name="color_text">#E8F4F0</color>
+    <color name="color_text_sec">#8CA59D</color>
+    <color name="color_on_accent">#06201A</color>
+    <color name="color_toast">#F210201E</color>
+</resources>

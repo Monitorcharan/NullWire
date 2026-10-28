@@ -526,6 +526,11 @@ Java_com_nullwire_receiver_AudioEngine_resetBuffers(JNIEnv* env, jobject thiz) {
     g_NativeEngine.ringBuffer.RequestReset();
 }
 
+JNIEXPORT jboolean JNICALL
+Java_com_nullwire_receiver_AudioEngine_isPlaybackRunning(JNIEnv* env, jobject thiz) {
+    return g_NativeEngine.isPlaybackRunning.load(std::memory_order_acquire) ? JNI_TRUE : JNI_FALSE;
+}
+
 JNIEXPORT void JNICALL
 Java_com_nullwire_receiver_AudioEngine_setWifiAcceleration(JNIEnv* env, jobject thiz, jboolean enabled) {
     g_NativeEngine.wifiAccelEnabled.store(enabled == JNI_TRUE, std::memory_order_release);

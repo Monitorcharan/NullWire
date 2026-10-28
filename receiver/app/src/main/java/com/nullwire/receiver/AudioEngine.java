@@ -20,4 +20,5 @@ public final class AudioEngine {
     public static native long getTrimmedFrames();
     public static native long getUnderrunCount();
     public static native void resetBuffers();
+    public static native boolean isPlaybackRunning();
 }

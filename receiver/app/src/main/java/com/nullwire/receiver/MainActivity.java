@@ -9,6 +9,9 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
+import android.content.res.Configuration;
+import android.graphics.drawable.GradientDrawable;
+import android.media.AudioManager;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
@@ -26,7 +29,7 @@ import android.text.InputFilter;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ProgressBar;
+import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -35,6 +38,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
@@ -73,6 +77,9 @@ public class MainActivity extends AppCompatActivity {
     private static final int PACKET_HEADER_SIZE = 8;
 
     private static final String PREFS = "nullwire_prefs";
+    private static final String PREF_THEME = "theme_mode";
+    // Aero sound profiles: {bass dB, treble dB}
+    private static final int[][] PRESETS = {{0, 0}, {3, 2}, {6, 3}, {2, 4}};
     private static final String PREF_AUTO_RESET = "auto_reset";
     private static final String PREF_RESET_MIN = "reset_minutes";
     private static final int[] RESET_MINUTES = {5, 10, 15, 20, 30, 45, 60};
@@ -101,7 +108,18 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvStatus;
     private TextView tvStats;
     private Button btnListen;
-    private ProgressBar pbLevelMeter;
+    private SpectrumView spectrumView;
+    private TextView tvLatency;
+    private TextView tvDeviceName;
+    private TextView tvVolumeVal;
+    private SeekBar sbVolume;
+    private View pageStream;
+    private View pageSound;
+    private View pageDevices;
+    private View[] navItems;
+    private ImageView[] navIcons;
+    private TextView[] navLabels;
+    private TextView[] presetButtons;
     private SeekBar sbBass;
     private TextView tvBassVal;
     private SeekBar sbTreble;
@@ -144,11 +162,13 @@ public class MainActivity extends AppCompatActivity {
             float rms = AudioEngine.getPlaybackRms();
             long packets = AudioEngine.getPlaybackPacketCount();
             int level = Math.max(0, Math.min(100, (int) (rms * 100)));
-            pbLevelMeter.setProgress(level);
+            spectrumView.push(level / 100f);
+            float bufferedMs = AudioEngine.getBufferedMs();
+            tvLatency.setText(String.format(Locale.US, "%.2f ms", bufferedMs));
 
             if (packets > lastPacketCount) {
                 stalePacketTicks = 0;
-                tvStats.setText("Packets: " + packets + "  ·  DMA Latency: <2.67ms  ·  Loss: 0.0%");
+                tvStats.setText("Packets: " + packets + "  ·  Trimmed: " + AudioEngine.getTrimmedFrames() + " fr  ·  Underruns: " + AudioEngine.getUnderrunCount());
                 if (!isConnectedState) {
                     isConnectedState = true;
                     tvStatus.setText("● Streaming 48kHz Lossless Audio");
@@ -166,13 +186,125 @@ public class MainActivity extends AppCompatActivity {
                     updateNotification("⚠️ Connection Lost · Waiting for PC...", false);
                 }
             } else {
-                tvStats.setText("Packets: 0  ·  DMA Ready  ·  Loss: 0.0%");
+                tvStats.setText("Packets: 0  ·  Waiting for PC");
             }
             lastPacketCount = packets;
             checkAutoReset();
             handler.postDelayed(this, 50);
         }
     };
+
+    private boolean isNightUi() {
+        return (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
+                == Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    private void setupThemeToggle() {
+        TextView light = findViewById(R.id.btnThemeLight);
+        TextView dark = findViewById(R.id.btnThemeDark);
+        boolean night = isNightUi();
+        (night ? dark : light).setBackgroundResource(R.drawable.seg_selected);
+        light.setOnClickListener(v -> setThemeMode(AppCompatDelegate.MODE_NIGHT_NO));
+        dark.setOnClickListener(v -> setThemeMode(AppCompatDelegate.MODE_NIGHT_YES));
+    }
+
+    private void setThemeMode(int mode) {
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putInt(PREF_THEME, mode).apply();
+        // Recreates the activity; onDestroy keeps the native audio engine running.
+        AppCompatDelegate.setDefaultNightMode(mode);
+    }
+
+    private void setupNavigation() {
+        navItems = new View[]{findViewById(R.id.navStream), findViewById(R.id.navSound), findViewById(R.id.navDevices)};
+        navIcons = new ImageView[]{findViewById(R.id.navStreamIcon), findViewById(R.id.navSoundIcon), findViewById(R.id.navDevicesIcon)};
+        navLabels = new TextView[]{findViewById(R.id.navStreamLabel), findViewById(R.id.navSoundLabel), findViewById(R.id.navDevicesLabel)};
+        for (int i = 0; i < navItems.length; i++) {
+            final int page = i;
+            navItems[i].setOnClickListener(v -> showPage(page));
+        }
+        showPage(0);
+    }
+
+    private void showPage(int page) {
+        pageStream.setVisibility(page == 0 ? View.VISIBLE : View.GONE);
+        pageSound.setVisibility(page == 1 ? View.VISIBLE : View.GONE);
+        pageDevices.setVisibility(page == 2 ? View.VISIBLE : View.GONE);
+        for (int i = 0; i < navItems.length; i++) {
+            boolean sel = i == page;
+            navItems[i].setSelected(sel);
+            int c = getColor(sel ? R.color.color_green : R.color.color_text_sec);
+            navIcons[i].setImageTintList(ColorStateList.valueOf(c));
+            navLabels[i].setTextColor(c);
+        }
+    }
+
+    private void setupPresets() {
+        presetButtons = new TextView[]{
+                findViewById(R.id.btnPresetPure), findViewById(R.id.btnPresetStudio),
+                findViewById(R.id.btnPresetCinema), findViewById(R.id.btnPresetGame)};
+        for (int i = 0; i < presetButtons.length; i++) {
+            final int idx = i;
+            presetButtons[i].setOnClickListener(v -> {
+                sbBass.setProgress(PRESETS[idx][0]);
+                sbTreble.setProgress(PRESETS[idx][1]);
+            });
+        }
+        updatePresetHighlight();
+    }
+
+    private void updatePresetHighlight() {
+        if (presetButtons == null) return;
+        for (int i = 0; i < presetButtons.length; i++) {
+            boolean match = sbBass.getProgress() == PRESETS[i][0] && sbTreble.getProgress() == PRESETS[i][1];
+            presetButtons[i].setBackgroundResource(match ? R.drawable.seg_selected : R.drawable.tile_bg);
+        }
+    }
+
+    private void setupVolume() {
+        final AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        final int max = Math.max(1, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
+        sbVolume.setMax(max);
+        sbVolume.setProgress(am.getStreamVolume(AudioManager.STREAM_MUSIC));
+        tvVolumeVal.setText(sbVolume.getProgress() * 100 / max + "%");
+        sbVolume.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser) am.setStreamVolume(AudioManager.STREAM_MUSIC, progress, 0);
+                tvVolumeVal.setText(progress * 100 / max + "%");
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+    }
+
+    /** Rounded pill button; plain setBackgroundColor would drop the rounded shape. */
+    private void styleButton(Button b, int bgRes, int fgRes) {
+        GradientDrawable d = new GradientDrawable();
+        d.setCornerRadius(getResources().getDisplayMetrics().density * 16);
+        d.setColor(getColor(bgRes));
+        b.setBackground(d);
+        b.setTextColor(getColor(fgRes));
+    }
+
+    private void styleListenButton(boolean listening) {
+        if (listening) styleButton(btnListen, R.color.color_red_soft, R.color.color_red);
+        else styleButton(btnListen, R.color.color_accent, R.color.color_on_accent);
+    }
+
+    /** After a theme switch the activity is recreated while the C++ engine keeps playing. */
+    private void restoreEngineState() {
+        if (AudioEngine.isPlaybackRunning()) {
+            isListening = true;
+            btnListen.setText("⏹ Disconnect");
+            tvStatus.setText("● AAudio Direct MMAP Ready");
+            tvStatus.setTextColor(getColor(R.color.color_green));
+            styleListenButton(true);
+            lastResetAtMs = android.os.SystemClock.elapsedRealtime();
+            handler.post(telemetryRunnable);
+        } else {
+            styleListenButton(false);
+        }
+    }
 
     private void checkAutoReset() {
         if (!autoResetEnabled || !isConnectedState) {
@@ -253,6 +385,8 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
+        AppCompatDelegate.setDefaultNightMode(
+                getSharedPreferences(PREFS, MODE_PRIVATE).getInt(PREF_THEME, AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM));
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
@@ -265,7 +399,14 @@ public class MainActivity extends AppCompatActivity {
         tvStatus = findViewById(R.id.tvStatus);
         tvStats = findViewById(R.id.tvStats);
         btnListen = findViewById(R.id.btnListen);
-        pbLevelMeter = findViewById(R.id.pbLevelMeter);
+        spectrumView = findViewById(R.id.spectrumView);
+        tvLatency = findViewById(R.id.tvLatency);
+        tvDeviceName = findViewById(R.id.tvDeviceName);
+        tvVolumeVal = findViewById(R.id.tvVolumeVal);
+        sbVolume = findViewById(R.id.sbVolume);
+        pageStream = findViewById(R.id.pageStream);
+        pageSound = findViewById(R.id.pageSound);
+        pageDevices = findViewById(R.id.pageDevices);
         sbBass = findViewById(R.id.sbBass);
         tvBassVal = findViewById(R.id.tvBassVal);
         sbTreble = findViewById(R.id.sbTreble);
@@ -322,6 +463,14 @@ public class MainActivity extends AppCompatActivity {
         });
 
         refreshNetworkIdentity();
+        tvDeviceName.setText(sanitizedDeviceName());
+        setupThemeToggle();
+        setupNavigation();
+        setupPresets();
+        setupVolume();
+        styleButton(btnMic, R.color.color_card_alt, R.color.color_text);
+        styleButton(btnResetInterval, R.color.color_card_alt, R.color.color_text);
+        restoreEngineState();
 
         btnListen.setOnClickListener(v -> {
             if (isListening) stopListening();
@@ -333,6 +482,7 @@ public class MainActivity extends AppCompatActivity {
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 tvBassVal.setText("+" + progress + " dB");
                 AudioEngine.setBassBoost((float) progress);
+                updatePresetHighlight();
             }
             @Override public void onStartTrackingTouch(SeekBar seekBar) {}
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
@@ -343,6 +493,7 @@ public class MainActivity extends AppCompatActivity {
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 tvTrebleVal.setText("+" + progress + " dB");
                 AudioEngine.setTrebleBoost((float) progress);
+                updatePresetHighlight();
             }
             @Override public void onStartTrackingTouch(SeekBar seekBar) {}
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
@@ -429,8 +580,8 @@ public class MainActivity extends AppCompatActivity {
             isConnectedState = false;
             lastResetAtMs = android.os.SystemClock.elapsedRealtime();
             delayTicks = 0;
-            btnListen.setText("⏹ Stop Audio Stream");
-            btnListen.setBackgroundColor(getColor(R.color.color_red));
+            btnListen.setText("⏹ Disconnect");
+            styleListenButton(true);
             tvStatus.setText("● AAudio Direct MMAP Ready");
             tvStatus.setTextColor(getColor(R.color.color_green));
             handler.post(telemetryRunnable);
@@ -449,11 +600,12 @@ public class MainActivity extends AppCompatActivity {
         cancelNotification();
 
         btnListen.setText("▶ Listen (Connect Audio)");
-        btnListen.setBackgroundColor(getColor(R.color.color_accent));
+        styleListenButton(false);
         tvStatus.setText("Ready to receive audio");
         tvStatus.setTextColor(getColor(R.color.color_text_sec));
-        pbLevelMeter.setProgress(0);
-        tvStats.setText("Packets: 0  ·  DMA Idle");
+        spectrumView.clear();
+        tvLatency.setText("-- ms");
+        tvStats.setText("Packets: 0");
         Toast.makeText(this, "Audio Stream Stopped", Toast.LENGTH_SHORT).show();
     }
 
@@ -664,7 +816,7 @@ public class MainActivity extends AppCompatActivity {
             micThread.start();
 
             btnMic.setText("⏹ Stop Phone Mic");
-            btnMic.setBackgroundColor(getColor(R.color.color_red));
+            styleButton(btnMic, R.color.color_red_soft, R.color.color_red);
             tvMicStatus.setText("● Streaming Mic to PC (" + ip + ":50006)");
             tvMicStatus.setTextColor(getColor(R.color.color_green));
             Toast.makeText(this, "🎙 Phone Mic Active -> PC", Toast.LENGTH_SHORT).show();
@@ -707,7 +859,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (btnMic != null) {
             btnMic.setText("🎙 Start Phone Mic (to PC)");
-            btnMic.setBackgroundColor(getColor(R.color.color_card));
+            styleButton(btnMic, R.color.color_card_alt, R.color.color_text);
             tvMicStatus.setText("Mic: Idle (Stream phone voice to PC)");
             tvMicStatus.setTextColor(getColor(R.color.color_text));
         }
@@ -793,10 +945,12 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
-        cancelNotification();
         stopDiscoveryBeacon();
-        stopListening();
         stopMicStreaming();
+        if (!isChangingConfigurations()) {
+            cancelNotification();
+            stopListening();
+        }
         super.onDestroy();
     }
 }
